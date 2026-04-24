@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { PiTreasureChestFill } from "react-icons/pi";
+import {
+  PiGameControllerFill,
+  PiTreasureChestFill,
+} from "react-icons/pi";
 import { ConfettiBurst } from "@/components/confetti-burst";
 import { TaskIcon } from "@/components/task-icons";
 import {
@@ -46,6 +49,48 @@ function getRewardProgressLabel(
     streak > 0 && cycleProgress === 0 ? reward.threshold : cycleProgress;
 
   return `${progress}/${reward.threshold}`;
+}
+
+type GameStatusCopy = {
+  tone: "ready" | "locked";
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+function getMissionWord(count: number): string {
+  return count > 1 ? "missions" : "mission";
+}
+
+function getGameStatusCopy(
+  completedCount: number,
+  totalCount: number
+): GameStatusCopy {
+  const remainingCount = Math.max(totalCount - completedCount, 0);
+
+  if (remainingCount === 0) {
+    return {
+      tone: "ready",
+      eyebrow: "Jeu vidéo",
+      title: "C'est débloqué",
+      description: "Les 4 missions sont faites. Bravo, tu peux jouer.",
+    };
+  }
+
+  return {
+    tone: "locked",
+    eyebrow: "Jeu vidéo",
+    title: `Encore ${remainingCount} ${getMissionWord(remainingCount)}`,
+    description: `${remainingCount} ${getMissionWord(remainingCount)} à réussir pour ouvrir le jeu et gagner un coffre.`,
+  };
+}
+
+function getPendingRewardCountCopy(count: number): string {
+  if (count === 0) {
+    return "Aucun coffre";
+  }
+
+  return count > 1 ? `${count} coffres` : "1 coffre";
 }
 
 function TrophyMark({ className }: { className?: string }) {
@@ -93,25 +138,23 @@ function ChestGlyph({
 
 function getRewardCelebrationCopy(reward: RewardHistoryEntry): string {
   if (reward.tier === "bronze") {
-    return "Bonbon gagné !";
+    return "Coffre ouvert !";
   }
 
   if (reward.tier === "silver") {
-    return "1 heure gagnée !";
+    return "Bonus gagné !";
   }
 
-  return "Gros cadeau gagné !";
+  return "Grand coffre gagné !";
 }
 
 function RewardPrize({ tier }: { tier: RewardTier }) {
   if (tier === "bronze") {
     return (
-      <div className="prize-art prize-art--candy" aria-hidden="true">
-        <span className="candy-stick" />
-        <span className="candy-shell" />
-        <span className="candy-swirl candy-swirl--one" />
-        <span className="candy-swirl candy-swirl--two" />
-        <span className="candy-swirl candy-swirl--three" />
+      <div className="prize-art prize-art--badge" aria-hidden="true">
+        <span className="badge-star" />
+        <span className="badge-ribbon badge-ribbon--left" />
+        <span className="badge-ribbon badge-ribbon--right" />
       </div>
     );
   }
@@ -185,6 +228,7 @@ export function MorningQuestApp() {
   const completedCount = getCompletedCount(state);
   const progressPercent = (completedCount / TASKS.length) * 100;
   const unlockedGame = isGameUnlocked(state);
+  const gameStatus = getGameStatusCopy(completedCount, TASKS.length);
   const streak = getStreak(state);
   const todayLabel = getLongDateLabel(state.activeDate);
   const pendingRewards = useMemo(() => getPendingRewards(state), [state]);
@@ -250,20 +294,19 @@ export function MorningQuestApp() {
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="hero-panel p-5 text-white sm:p-7">
-          <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-center">
+          <div className="hero-grid">
             <div>
               <div className="hero-kicker">{todayLabel}</div>
               <h1 className="mt-5 font-display text-[clamp(3.6rem,9vw,6.6rem)] leading-[0.9] tracking-[0.02em]">
                 Mission du matin
               </h1>
-
-              <p className="mt-4 text-2xl font-black leading-tight text-white">
-                4 images à toucher.
+              <p className="hero-subcopy mt-4">
+                4 missions, puis jeu vidéo et coffre du jour.
               </p>
 
               <div className="mt-7 space-y-3">
                 <div className="flex items-center justify-between text-sm font-extrabold uppercase tracking-[0.08em] text-white">
-                  <span>Images</span>
+                  <span>Missions</span>
                   <span>
                     {completedCount}/{TASKS.length}
                   </span>
@@ -275,51 +318,69 @@ export function MorningQuestApp() {
                   />
                 </div>
               </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <div className="hero-console p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                    Jeu
-                  </p>
-                  <p className="mt-2 text-xl font-black">
-                    {unlockedGame ? "Débloqué" : "Fermé"}
-                  </p>
-                </div>
-                <div className="hero-console p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                    Trophées
-                  </p>
-                  <p className="mt-2 text-xl font-black">
-                    {streak}
-                  </p>
-                </div>
-                <div className="hero-console p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                    Coffres
-                  </p>
-                  <p className="mt-2 text-xl font-black">
-                    {pendingRewards.length}
-                  </p>
-                </div>
-              </div>
             </div>
 
-            <div className="status-lock p-5 text-center">
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="hero-mini-pill">
-                  {unlockedGame ? "Jeu ouvert" : "Jeu fermé"}
-                </div>
-                <div className="mt-5 rounded-[1.7rem] bg-white/16 px-6 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]">
-                  <div className="text-4xl font-black tracking-[0.08em]">
-                    {unlockedGame ? "PRÊT" : "FERMÉ"}
-                  </div>
-                  <p className="mt-3 max-w-xs text-sm font-extrabold leading-6 text-white">
-                    {unlockedGame
-                      ? "Tu peux jouer."
-                      : `${TASKS.length - completedCount} image${TASKS.length - completedCount > 1 ? "s" : ""} manque${TASKS.length - completedCount > 1 ? "nt" : ""}.`}
-                  </p>
-                </div>
+            <div
+              className={`game-status game-status--${gameStatus.tone}`}
+              aria-live="polite"
+            >
+              <div className="game-status-orbit">
+                <PiGameControllerFill
+                  aria-hidden="true"
+                  className="game-status-icon"
+                />
               </div>
+              <p className="game-status-kicker">{gameStatus.eyebrow}</p>
+              <h2 className="game-status-title">{gameStatus.title}</h2>
+              <p className="game-status-copy">{gameStatus.description}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="hero-console p-4">
+              <div className="hero-console-line">
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
+                  Jeu
+                </p>
+                <span className="hero-console-icon-badge">
+                  <PiGameControllerFill
+                    aria-hidden="true"
+                    className="hero-console-icon"
+                  />
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-black">
+                {unlockedGame ? "Ouvert" : "Verrouillé"}
+              </p>
+            </div>
+            <div className="hero-console p-4">
+              <div className="hero-console-line">
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
+                  Trophées
+                </p>
+                <span className="hero-console-icon-badge">
+                  <TrophyMark
+                    className="hero-console-icon hero-console-icon--trophy"
+                  />
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-black">{streak}</p>
+            </div>
+            <div className="hero-console p-4">
+              <div className="hero-console-line">
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
+                  Coffres
+                </p>
+                <span className="hero-console-icon-badge">
+                  <ChestGlyph
+                    tier="gold"
+                    className="hero-console-icon hero-console-icon--chest"
+                  />
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-black">
+                {pendingRewards.length}
+              </p>
             </div>
           </div>
         </section>
@@ -329,7 +390,7 @@ export function MorningQuestApp() {
             <div>
               <p className="section-kicker">Missions</p>
               <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                Les images
+                Les cartes
               </h2>
             </div>
             <div className="count-pill">{completedCount}/4</div>
@@ -373,7 +434,7 @@ export function MorningQuestApp() {
                             color: done ? "#14653B" : task.chipText,
                           }}
                         >
-                          {done ? "OK" : task.badge}
+                          {done ? "Fait" : task.badge}
                         </div>
                         <h3 className="mt-3 text-2xl font-black leading-tight text-foreground">
                           {task.title}
@@ -391,7 +452,7 @@ export function MorningQuestApp() {
                         color: done ? "#14653B" : task.buttonText,
                       }}
                     >
-                      {done ? "Annuler" : "Valider"}
+                      {done ? "Fait !" : "C'est fait"}
                     </div>
                   </div>
                 </button>
@@ -400,42 +461,41 @@ export function MorningQuestApp() {
           </div>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
           <section className="panel-card overflow-hidden p-5 sm:p-6">
             <div className="flex flex-col gap-5">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="section-kicker">Coffres</p>
                   <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                    Les gains
+                    Coffres bonus
                   </h2>
                 </div>
                 <div className="count-pill">
-                  {pendingRewards.length} prêt
-                  {pendingRewards.length > 1 ? "s" : ""}
+                  {getPendingRewardCountCopy(pendingRewards.length)}
                 </div>
               </div>
 
               <div className="treasure-claim p-5">
                 <div className="treasure-claim-head">
                   <div>
-                  <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                    Coffre
-                  </p>
-                  <h3 className="mt-2 text-3xl font-black text-white">
-                    {nextReward
-                      ? `${nextReward.chestName} prêt`
-                      : unlockedGame
-                        ? "Ouvert"
-                        : "Fermé"}
-                  </h3>
-                  <p className="mt-2 text-base font-bold leading-7 text-white/86">
-                    {nextReward
-                      ? nextReward.title
-                      : unlockedGame
-                        ? "Demain, nouveau coffre."
-                        : "Fais les 4 images."}
-                  </p>
+                    <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
+                      Coffre du jour
+                    </p>
+                    <h3 className="mt-2 text-3xl font-black text-white">
+                      {nextReward
+                        ? `${nextReward.chestName} prêt`
+                        : unlockedGame
+                          ? "Coffre ouvert"
+                          : "Coffre verrouillé"}
+                    </h3>
+                    <p className="mt-2 text-base font-bold leading-7 text-white/86">
+                      {nextReward
+                        ? nextReward.title
+                        : unlockedGame
+                          ? "Demain, un nouveau coffre t'attend."
+                          : "Termine les 4 missions pour le gagner."}
+                    </p>
                   </div>
                   <div className="treasure-claim-glyph">
                     <ChestGlyph
@@ -516,7 +576,7 @@ export function MorningQuestApp() {
                       {reward.title}
                     </p>
                     <div className="mt-4">
-                      <div className="mb-2 flex justify-between text-xs font-black uppercase tracking-[0.08em] text-[color:var(--ink-soft)]">
+                      <div className="reward-progress-head">
                         <span>Progression</span>
                         <span>{progressLabel}</span>
                       </div>

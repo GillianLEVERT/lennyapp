@@ -157,12 +157,148 @@ a:focus-visible {
     -12rem 4rem 0 0 rgba(255, 255, 255, 0.08);
 }
 
+.hero-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero-subcopy {
+  max-width: 36rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  font-weight: 900;
+  line-height: 1.16;
+}
+
+.game-status {
+  position: relative;
+  overflow: hidden;
+  min-height: 17rem;
+  border-radius: 1.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 1.15rem;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.34), transparent 30%),
+    rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 0.16rem 0 rgba(255, 255, 255, 0.2),
+    0 1.4rem 2.6rem rgba(12, 27, 86, 0.18);
+}
+
+.game-status--ready {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.42), transparent 30%),
+    linear-gradient(155deg, rgba(255, 212, 71, 0.42), rgba(44, 203, 115, 0.28));
+}
+
+.game-status-orbit {
+  position: relative;
+  display: grid;
+  width: min(48vw, 9.2rem);
+  height: min(48vw, 9.2rem);
+  margin: 0 auto 1rem;
+  place-items: center;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.84), transparent 18%),
+    linear-gradient(145deg, #ffd447 0%, #ff8a4d 52%, #ff4d63 100%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 0.32rem 0 rgba(255, 255, 255, 0.38),
+    0 1.3rem 2.4rem rgba(20, 34, 94, 0.22);
+}
+
+.game-status--ready .game-status-orbit {
+  background:
+    radial-gradient(circle at 36% 26%, rgba(255, 255, 255, 0.84), transparent 18%),
+    linear-gradient(145deg, #fff2a6 0%, #ffd447 48%, #2ccb73 100%);
+}
+
+.game-status-icon {
+  width: min(24vw, 4.7rem);
+  height: min(24vw, 4.7rem);
+  filter:
+    drop-shadow(0 0.5rem 0.8rem rgba(21, 37, 75, 0.22))
+    drop-shadow(0 0.12rem 0 rgba(255, 255, 255, 0.36));
+}
+
+.game-status-kicker,
+.game-status-title,
+.game-status-copy {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.game-status-kicker {
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.game-status-title {
+  margin-top: 0.4rem;
+  font-size: clamp(2.2rem, 8vw, 3.8rem);
+  font-weight: 900;
+  line-height: 0.9;
+  color: #ffffff;
+}
+
+.game-status-copy {
+  max-width: 20rem;
+  margin: 0.85rem auto 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .hero-console {
   border-radius: 1.75rem;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(12px);
   min-width: 0;
+}
+
+.hero-console-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hero-console-icon-badge {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 0.14rem 0 rgba(255, 255, 255, 0.2),
+    0 0.65rem 1.2rem rgba(20, 34, 94, 0.16);
+}
+
+.hero-console-icon {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: #ffd447;
+  filter: drop-shadow(0 0.3rem 0.7rem rgba(255, 212, 71, 0.32));
+}
+
+.hero-console-icon--trophy {
+  color: #ffe186;
+  filter: drop-shadow(0 0.3rem 0.7rem rgba(255, 225, 134, 0.34));
+}
+
+.hero-console-icon--chest {
+  color: #ffd27a;
+  filter: drop-shadow(0 0.3rem 0.7rem rgba(255, 210, 122, 0.34));
 }
 
 .panel-card {
@@ -210,6 +346,25 @@ a:focus-visible {
 
 .hero-mini-pill {
   background: rgba(255, 255, 255, 0.24);
+  gap: 0.75rem;
+  padding: 0.55rem 1.05rem;
+}
+
+.hero-mini-pill-icon-badge {
+  display: grid;
+  flex: 0 0 auto;
+  width: 1.85rem;
+  height: 1.85rem;
+  place-items: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0.08rem 0 rgba(255, 255, 255, 0.28);
+}
+
+.hero-mini-pill-icon {
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .progress-track {
@@ -244,6 +399,33 @@ a:focus-visible {
   inset: 1rem;
   border-radius: 1.2rem;
   border: 2px dashed rgba(255, 255, 255, 0.2);
+}
+
+.status-lock-icon {
+  display: grid;
+  width: 6.4rem;
+  height: 6.4rem;
+  margin: 0 auto 1.2rem;
+  place-items: center;
+  border-radius: 2rem;
+  box-shadow:
+    inset 0 0.22rem 0 rgba(255, 255, 255, 0.34),
+    0 1rem 1.8rem rgba(9, 18, 61, 0.22);
+}
+
+.status-lock-icon--ready {
+  background: linear-gradient(145deg, rgba(255, 212, 71, 0.92) 0%, rgba(255, 166, 39, 0.92) 100%);
+  color: #17318f;
+}
+
+.status-lock-icon--wait {
+  background: linear-gradient(145deg, rgba(255, 108, 94, 0.94) 0%, rgba(255, 77, 99, 0.94) 100%);
+  color: #ffffff;
+}
+
+.status-lock-icon-svg {
+  width: 3.35rem;
+  height: 3.35rem;
 }
 
 .task-card {
@@ -624,6 +806,20 @@ a:focus-visible {
   background: rgba(21, 37, 75, 0.08);
 }
 
+.reward-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .reward-progress span {
   display: block;
   height: 100%;
@@ -689,6 +885,13 @@ a:focus-visible {
 @media (min-width: 640px) {
   .task-button {
     min-height: 3.7rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1.22fr) minmax(18rem, 0.78fr);
+    align-items: center;
   }
 }
 
@@ -936,68 +1139,56 @@ a:focus-visible {
   filter: drop-shadow(0 1.2rem 1.5rem rgba(21, 37, 75, 0.24));
 }
 
-.prize-art--candy {
+.prize-art--badge {
   width: 8rem;
-  height: 11rem;
+  height: 9.2rem;
 }
 
-.candy-stick {
+.badge-star {
   position: absolute;
   left: 50%;
-  bottom: 0.3rem;
-  width: 1rem;
-  height: 4.4rem;
-  border-radius: 9999px;
-  background: linear-gradient(180deg, #fff8df 0%, #f8d59b 100%);
-  box-shadow:
-    inset 0 0.14rem 0 rgba(255, 255, 255, 0.7),
-    0 0.45rem 0.9rem rgba(21, 37, 75, 0.12);
-  transform: translateX(-50%);
-}
-
-.candy-shell {
-  position: absolute;
-  left: 50%;
-  top: 0.4rem;
-  width: 7rem;
-  height: 7rem;
-  border-radius: 9999px;
+  top: 0.2rem;
+  width: 7.2rem;
+  height: 7.2rem;
   background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.95), transparent 18%),
-    radial-gradient(circle at 50% 54%, #ffefab 0%, #ffd447 28%, #ff7d95 54%, #ff4d63 76%, #d92d57 100%);
-  box-shadow:
-    inset 0 0.38rem 0 rgba(255, 255, 255, 0.55),
-    0 1.2rem 2rem rgba(255, 77, 99, 0.22);
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.92), transparent 18%),
+    linear-gradient(145deg, #ffe0a8 0%, #c9783f 58%, #7b3d20 100%);
+  clip-path: polygon(
+    50% 0%,
+    61% 30%,
+    94% 20%,
+    74% 48%,
+    98% 72%,
+    64% 72%,
+    50% 100%,
+    36% 72%,
+    2% 72%,
+    26% 48%,
+    6% 20%,
+    39% 30%
+  );
+  filter: drop-shadow(0 0.9rem 1.2rem rgba(123, 61, 32, 0.24));
   transform: translateX(-50%);
 }
 
-.candy-swirl {
+.badge-ribbon {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 9999px;
-  border: 0.5rem solid rgba(255, 255, 255, 0.8);
-  transform: translate(-50%, -50%);
+  bottom: 0.2rem;
+  width: 2.25rem;
+  height: 4.4rem;
+  border-radius: 0 0 0.4rem 0.4rem;
+  background: linear-gradient(180deg, #ff4d63 0%, #b91f3a 100%);
+  box-shadow: inset 0.18rem 0 0 rgba(255, 255, 255, 0.2);
 }
 
-.candy-swirl--one {
-  top: 3.9rem;
-  width: 4.75rem;
-  height: 4.75rem;
+.badge-ribbon--left {
+  left: 1.8rem;
+  rotate: 10deg;
 }
 
-.candy-swirl--two {
-  top: 3.9rem;
-  width: 3.15rem;
-  height: 3.15rem;
-  border-width: 0.42rem;
-}
-
-.candy-swirl--three {
-  top: 3.9rem;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-width: 0.32rem;
+.badge-ribbon--right {
+  right: 1.8rem;
+  rotate: -10deg;
 }
 
 .prize-art--gamepad {

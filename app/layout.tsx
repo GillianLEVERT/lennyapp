@@ -4,14 +4,14 @@ import { bodyFont, displayFont } from "./fonts";
 import { PwaRegistration } from "@/components/pwa-registration";
 
 export const metadata: Metadata = {
-  title: "Mission Heros du Matin",
+  title: "Mission Héros du Matin",
   description:
-    "Une mini app mobile et ludique pour transformer la routine du matin en mission de heros, puis debloquer le temps de jeu.",
-  applicationName: "Mission Heros du Matin",
+    "Une mini app mobile et ludique pour transformer la routine du matin en missions, puis débloquer le temps de jeu et un coffre.",
+  applicationName: "Mission Héros du Matin",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Mission Heros",
+    title: "Mission Héros",
   },
   formatDetection: {
     telephone: false,
