@@ -1,7 +1,7 @@
 ---
 version: alpha
-name: Mission Héros du Matin
-description: Une identité visuelle mobile-first pour une mini app enfant qui transforme la routine du matin en jeu de progression sain, joyeux et lisible pour un enfant de 6 ans.
+name: Skadoush
+description: Une identité visuelle mobile-first pour Skadoush, une mini app enfant qui transforme la routine du matin en jeu de progression sain, joyeux et lisible pour un enfant de 6 ans.
 colors:
   primary: "#2E5BFF"
   secondary: "#FF4D63"

@@ -3,8 +3,11 @@
 import dynamic from "next/dynamic";
 
 // Chargé uniquement côté client : tout le code Firebase reste hors du serveur.
-const KidQuest = dynamic(
-  () => import("@/components/kid-quest").then((mod) => mod.KidQuest),
+const ParentDashboard = dynamic(
+  () =>
+    import("@/components/parent/parent-dashboard").then(
+      (mod) => mod.ParentDashboard
+    ),
   {
     ssr: false,
     loading: () => (
@@ -17,6 +20,6 @@ const KidQuest = dynamic(
   }
 );
 
-export default function Home() {
-  return <KidQuest />;
+export default function ParentPage() {
+  return <ParentDashboard />;
 }

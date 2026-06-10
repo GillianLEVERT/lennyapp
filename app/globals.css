@@ -157,6 +157,54 @@ a:focus-visible {
     -12rem 4rem 0 0 rgba(255, 255, 255, 0.08);
 }
 
+.hero-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(1.06);
+  outline: none;
+}
+
+.sound-toggle[aria-pressed="false"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.sound-toggle-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+@media (min-width: 640px) {
+  .hero-actions {
+    top: 1.5rem;
+    right: 1.5rem;
+  }
+}
+
 .hero-grid {
   display: grid;
   gap: 1.25rem;

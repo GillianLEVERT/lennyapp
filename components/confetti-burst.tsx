@@ -1,7 +1,23 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+function usePrefersReducedMotion(): boolean {
+  const [prefersReduced, setPrefersReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReduced(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return prefersReduced;
+}
 
 type ConfettiPiece = {
   id: string;
@@ -18,8 +34,9 @@ type ConfettiPiece = {
 const CONFETTI_COLORS = ["#2E5BFF", "#FF4D63", "#FFD447", "#2CCB73", "#FFFFFF"];
 
 export function ConfettiBurst({ burstKey }: { burstKey: number }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const pieces = useMemo<ConfettiPiece[]>(() => {
-    if (!burstKey) {
+    if (!burstKey || prefersReducedMotion) {
       return [];
     }
 
@@ -38,7 +55,7 @@ export function ConfettiBurst({ burstKey }: { burstKey: number }) {
         shape: index % 3 === 0 ? "999px" : "4px",
       };
     });
-  }, [burstKey]);
+  }, [burstKey, prefersReducedMotion]);
 
   if (!pieces.length) {
     return null;

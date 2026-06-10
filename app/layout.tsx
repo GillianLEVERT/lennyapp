@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { bodyFont, displayFont } from "./fonts";
+import { AuthProvider } from "@/components/auth-provider";
 import { PwaRegistration } from "@/components/pwa-registration";
 
 export const metadata: Metadata = {
-  title: "Mission Héros du Matin",
+  title: "Skadoush",
   description:
-    "Une mini app mobile et ludique pour transformer la routine du matin en missions, puis débloquer le temps de jeu et un coffre.",
-  applicationName: "Mission Héros du Matin",
+    "Skadoush transforme la routine du matin en missions à points et récompenses à débloquer.",
+  applicationName: "Skadoush",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Mission Héros",
+    title: "Skadoush",
   },
   formatDetection: {
     telephone: false,
@@ -34,7 +35,7 @@ export default function RootLayout({
       className={`${bodyFont.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <PwaRegistration />
       </body>
     </html>

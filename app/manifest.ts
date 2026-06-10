@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Mission Héros du Matin",
-    short_name: "Mission Héros",
+    name: "Skadoush",
+    short_name: "Skadoush",
     description:
-      "La routine du matin devient un mini jeu mobile pour débloquer le temps de jeu et gagner des récompenses famille.",
+      "Skadoush transforme la routine du matin en missions à points et récompenses à débloquer.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
