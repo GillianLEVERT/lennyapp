@@ -134,6 +134,64 @@ const VIBRATION_PATTERNS: Record<FeedbackCue, number | number[]> = {
   reward: [0, 30, 30, 30, 30, 90],
 };
 
+// Sons de validation au choix pour le bruit de mission (le plus fréquent).
+// Le parent peut en piquer un, ou enregistrer le sien (id "custom").
+export type TaskSoundPreset = { id: string; label: string; notes: Note[] };
+
+export const TASK_SOUND_PRESETS: TaskSoundPreset[] = [
+  { id: "default", label: "Bloup", notes: CUE_NOTES.task },
+  {
+    id: "pop",
+    label: "Pop",
+    notes: [{ freq: 880, start: 0, duration: 0.09, type: "sine", peak: 0.18 }],
+  },
+  {
+    id: "coin",
+    label: "Pièce",
+    notes: [
+      { freq: 987.77, start: 0, duration: 0.08, type: "square", peak: 0.1 },
+      { freq: 1318.51, start: 0.07, duration: 0.18, type: "square", peak: 0.1 },
+    ],
+  },
+  {
+    id: "magic",
+    label: "Magie",
+    notes: [
+      { freq: 783.99, start: 0, duration: 0.1 },
+      { freq: 1046.5, start: 0.08, duration: 0.1 },
+      { freq: 1396.91, start: 0.16, duration: 0.22, peak: 0.13 },
+    ],
+  },
+];
+
+export const CUSTOM_SOUND_ID = "custom";
+
+// Son de validation actif (configuré depuis l'enfant courant côté vue enfant).
+let activeTaskSound: { id: string; customUrl: string | null } = {
+  id: "default",
+  customUrl: null,
+};
+
+export function setActiveTaskSound(value: {
+  id: string | null;
+  customUrl?: string | null;
+}): void {
+  activeTaskSound = { id: value.id ?? "default", customUrl: value.customUrl ?? null };
+}
+
+function playAudioUrl(url: string): void {
+  if (typeof Audio === "undefined") {
+    return;
+  }
+  try {
+    const audio = new Audio(url);
+    audio.volume = 0.9;
+    void audio.play();
+  } catch {
+    // Lecture refusée (autoplay/permission) : on ignore silencieusement.
+  }
+}
+
 function playNote(ctx: AudioContext, note: Note, baseTime: number): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -164,6 +222,18 @@ function vibrate(cue: FeedbackCue): void {
   }
 }
 
+function playSynthNotes(notes: Note[]): void {
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+
+  const baseTime = ctx.currentTime + 0.01;
+  for (const note of notes) {
+    playNote(ctx, note, baseTime);
+  }
+}
+
 export function playCue(cue: FeedbackCue): void {
   if (!isSoundEnabled()) {
     return;
@@ -171,15 +241,32 @@ export function playCue(cue: FeedbackCue): void {
 
   vibrate(cue);
 
-  const ctx = getAudioContext();
-
-  if (!ctx) {
+  // Le bruit de validation est personnalisable (preset ou enregistrement).
+  if (cue === "task") {
+    if (activeTaskSound.id === CUSTOM_SOUND_ID && activeTaskSound.customUrl) {
+      playAudioUrl(activeTaskSound.customUrl);
+      return;
+    }
+    const preset = TASK_SOUND_PRESETS.find(
+      (entry) => entry.id === activeTaskSound.id
+    );
+    playSynthNotes(preset?.notes ?? CUE_NOTES.task);
     return;
   }
 
-  const baseTime = ctx.currentTime + 0.01;
+  playSynthNotes(CUE_NOTES[cue]);
+}
 
-  for (const note of CUE_NOTES[cue]) {
-    playNote(ctx, note, baseTime);
+// Aperçu déclenché par un clic parent : joue même si le son global est coupé.
+export function previewTaskSound(value: {
+  id: string | null;
+  customUrl?: string | null;
+}): void {
+  const id = value.id ?? "default";
+  if (id === CUSTOM_SOUND_ID && value.customUrl) {
+    playAudioUrl(value.customUrl);
+    return;
   }
+  const preset = TASK_SOUND_PRESETS.find((entry) => entry.id === id);
+  playSynthNotes(preset?.notes ?? CUE_NOTES.task);
 }

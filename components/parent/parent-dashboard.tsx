@@ -1,31 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PiArrowLeftBold,
+  PiCameraFill,
   PiCheckBold,
+  PiPencilSimpleBold,
   PiPlusBold,
   PiSignOutBold,
   PiSparkleFill,
   PiTrashBold,
+  PiTreasureChestFill,
   PiXBold,
 } from "react-icons/pi";
 import { useAuth } from "@/components/auth-provider";
+import { ChildAvatar } from "@/components/child-avatar";
+import { SoundPicker } from "@/components/sound-picker";
+import { compressImage } from "@/lib/media";
 import {
   addChild,
   addMission,
   addReward,
+  CHEST_COSTS,
   deleteChild,
   deleteMission,
   deleteReward,
   MAX_MISSIONS,
+  REWARD_TIERS,
+  seedStarterKit,
   subscribeChildren,
   subscribeMissions,
   subscribeRewards,
+  tierFromPointsCost,
+  updateChild,
   type Child,
   type Mission,
   type Reward,
+  type RewardTier,
 } from "@/lib/firestore-data";
 import {
   MISSION_PRESETS,
@@ -250,7 +262,10 @@ function Onboarding({ parentId }: { parentId: string }) {
     }
     setBusy(true);
     try {
-      await addChild(parentId, { name: trimmed, avatar });
+      const ref = await addChild(parentId, { name: trimmed, avatar });
+      await seedStarterKit(parentId, ref.id);
+    } catch (error) {
+      console.error("Création de l'enfant échouée", error);
     } finally {
       setBusy(false);
     }
@@ -317,6 +332,60 @@ function ChildBar({
   const [avatar, setAvatar] = useState(CHILD_AVATARS[0]);
   const [busy, setBusy] = useState(false);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAvatar, setEditAvatar] = useState(CHILD_AVATARS[0]);
+  const [editPhoto, setEditPhoto] = useState<string | null>(null);
+  const [editSoundId, setEditSoundId] = useState<string | null>(null);
+  const [editCustomSound, setEditCustomSound] = useState<string | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+
+  function startEdit(child: Child) {
+    setAdding(false);
+    setEditingId(child.id);
+    setEditName(child.name);
+    setEditAvatar(child.avatar);
+    setEditPhoto(child.photoURL);
+    setEditSoundId(child.soundId);
+    setEditCustomSound(child.customSound);
+  }
+
+  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    try {
+      setEditPhoto(await compressImage(file));
+    } catch (error) {
+      console.error("Photo illisible", error);
+    }
+  }
+
+  async function handleSaveEdit() {
+    const trimmed = editName.trim();
+    if (!editingId || !trimmed || editBusy) {
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await updateChild(parentId, editingId, {
+        name: trimmed,
+        avatar: editAvatar,
+        photoURL: editPhoto,
+        soundId: editSoundId,
+        customSound: editCustomSound,
+      });
+      setEditingId(null);
+    } catch (error) {
+      console.error("Modification de l'enfant échouée", error);
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   async function handleAdd() {
     const trimmed = name.trim();
     if (!trimmed || busy) {
@@ -324,10 +393,13 @@ function ChildBar({
     }
     setBusy(true);
     try {
-      await addChild(parentId, { name: trimmed, avatar });
+      const ref = await addChild(parentId, { name: trimmed, avatar });
+      await seedStarterKit(parentId, ref.id);
       setName("");
       setAvatar(CHILD_AVATARS[0]);
       setAdding(false);
+    } catch (error) {
+      console.error("Ajout de l'enfant échoué", error);
     } finally {
       setBusy(false);
     }
@@ -359,9 +431,12 @@ function ChildBar({
                 onClick={() => onSelect(child.id)}
                 className="flex items-center gap-2 text-left"
               >
-                <span className="text-2xl" aria-hidden="true">
-                  {child.avatar}
-                </span>
+                <ChildAvatar
+                  avatar={child.avatar}
+                  photoURL={child.photoURL}
+                  name={child.name}
+                  size={36}
+                />
                 <span>
                   <span className="block text-sm font-black leading-tight text-foreground">
                     {child.name}
@@ -370,6 +445,14 @@ function ChildBar({
                     {child.totalPoints} pts
                   </span>
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => startEdit(child)}
+                aria-label={`Modifier ${child.name}`}
+                className="text-[color:var(--ink-soft)] transition hover:text-[color:var(--primary)]"
+              >
+                <PiPencilSimpleBold aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -391,6 +474,88 @@ function ChildBar({
           <PiPlusBold aria-hidden="true" /> Enfant
         </button>
       </div>
+
+      {editingId ? (
+        <div className="mt-4 flex flex-col gap-4 border-t border-[color:var(--shell)] pt-4">
+          <p className="section-kicker">Modifier l&apos;enfant</p>
+
+          <div className="flex items-center gap-4">
+            <ChildAvatar
+              avatar={editAvatar}
+              photoURL={editPhoto}
+              name={editName || "Enfant"}
+              size={64}
+            />
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
+              >
+                <PiCameraFill aria-hidden="true" />
+                {editPhoto ? "Changer la photo" : "Ajouter une photo"}
+              </button>
+              {editPhoto ? (
+                <button
+                  type="button"
+                  onClick={() => setEditPhoto(null)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
+                >
+                  <PiTrashBold aria-hidden="true" /> Retirer
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <AvatarPicker
+            options={CHILD_AVATARS}
+            value={editAvatar}
+            onChange={setEditAvatar}
+          />
+
+          <input
+            type="text"
+            value={editName}
+            onChange={(event) => setEditName(event.target.value)}
+            placeholder="Prénom de l'enfant"
+            className={inputClass}
+          />
+
+          <SoundPicker
+            soundId={editSoundId}
+            customSound={editCustomSound}
+            onChange={({ soundId, customSound }) => {
+              setEditSoundId(soundId);
+              setEditCustomSound(customSound);
+            }}
+          />
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={!editName.trim() || editBusy}
+              className="task-button flex-1 bg-[color:var(--primary)] text-white disabled:opacity-60"
+            >
+              Enregistrer
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingId(null)}
+              className="inline-flex items-center justify-center rounded-2xl bg-[color:var(--surface-soft)] px-4 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {adding ? (
         <div className="mt-4 flex flex-col gap-3 border-t border-[color:var(--shell)] pt-4">
@@ -617,19 +782,26 @@ function MissionsCard({
   );
 }
 
-function RewardsCard({
+// Un coffre = une section : son palier, ses récompenses, et ses propres
+// actions « Suggérer » (presets adaptés au palier) + « Sur-mesure ».
+function ChestGroup({
   parentId,
   childId,
+  tier,
   rewards,
 }: {
   parentId: string;
   childId: string;
+  tier: RewardTier;
   rewards: Reward[];
 }) {
+  const chest = REWARD_TIERS.find((entry) => entry.tier === tier)!;
+  const cost = CHEST_COSTS[tier];
+  const items = rewards.filter((reward) => reward.tier === tier);
+
   const [showPresets, setShowPresets] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [title, setTitle] = useState("");
-  const [pointsCost, setPointsCost] = useState(50);
   const [icon, setIcon] = useState(REWARD_ICONS[0]);
   const [busy, setBusy] = useState(false);
 
@@ -638,21 +810,25 @@ function RewardsCard({
     [rewards]
   );
 
-  const presetItems: PresetItem[] = REWARD_PRESETS.map((preset) => ({
+  // Presets dont le coût correspond à ce coffre (bronze < 40, argent 40-60, or > 60).
+  const tierPresets = REWARD_PRESETS.filter(
+    (preset) => tierFromPointsCost(preset.pointsCost) === tier
+  );
+  const presetItems: PresetItem[] = tierPresets.map((preset) => ({
     id: preset.title,
     title: preset.title,
     icon: preset.icon,
-    sub: `${preset.pointsCost} pts`,
+    sub: chest.chestName,
     alreadyAdded: existingTitles.has(preset.title.toLowerCase()),
   }));
 
   async function addPresets(ids: string[]) {
-    const chosen = REWARD_PRESETS.filter((preset) => ids.includes(preset.title));
+    const chosen = tierPresets.filter((preset) => ids.includes(preset.title));
     await Promise.all(
       chosen.map((preset: RewardPreset) =>
         addReward(parentId, childId, {
           title: preset.title,
-          pointsCost: preset.pointsCost,
+          tier,
           icon: preset.icon,
         })
       )
@@ -667,9 +843,8 @@ function RewardsCard({
     }
     setBusy(true);
     try {
-      await addReward(parentId, childId, { title: trimmed, pointsCost, icon });
+      await addReward(parentId, childId, { title: trimmed, tier, icon });
       setTitle("");
-      setPointsCost(50);
       setIcon(REWARD_ICONS[0]);
       setShowCustom(false);
     } finally {
@@ -678,36 +853,45 @@ function RewardsCard({
   }
 
   return (
-    <section className="panel-card flex flex-col p-5 sm:p-6">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="section-kicker">À débloquer</p>
-          <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
-            Récompenses
-          </h2>
+    <div className="rounded-[1.5rem] border-2 border-[color:var(--shell)] p-4">
+      <div className="flex items-center gap-3">
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-2xl"
+          style={{ backgroundColor: `${chest.accent}22`, color: chest.accent }}
+        >
+          <PiTreasureChestFill aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-black text-foreground">
+            {chest.chestName}
+          </p>
+          <p className="text-xs font-bold text-[color:var(--ink-soft)]">
+            {cost} pts · {items.length} récompense{items.length > 1 ? "s" : ""}
+          </p>
         </div>
-        <div className="count-pill">{rewards.length}</div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setShowPresets(true)}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--tertiary)] px-4 py-2 text-sm font-extrabold text-[color:var(--ink)]"
-        >
-          <PiSparkleFill aria-hidden="true" /> Suggestions
-        </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {tierPresets.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowPresets(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--tertiary)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink)]"
+          >
+            <PiSparkleFill aria-hidden="true" /> Suggérer
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setShowCustom((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-4 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
+          className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink-soft)]"
         >
           <PiPlusBold aria-hidden="true" /> Sur-mesure
         </button>
       </div>
 
       {showCustom ? (
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-4">
+        <div className="mt-3 flex flex-col gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-4">
           <div className="flex items-center gap-2 overflow-x-auto">
             {REWARD_ICONS.map((option) => (
               <button
@@ -730,33 +914,19 @@ function RewardsCard({
             placeholder="Ex : Soirée pyjama"
             className={inputClass}
           />
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]">
-              Coût
-              <input
-                type="number"
-                min={1}
-                value={pointsCost}
-                onChange={(event) =>
-                  setPointsCost(Math.max(1, Number(event.target.value)))
-                }
-                className="w-24 rounded-2xl border-2 border-[color:var(--shell)] px-3 py-2 text-base font-bold text-foreground outline-none focus-visible:border-[color:var(--primary)]"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={addCustom}
-              disabled={!title.trim() || busy}
-              className="task-button flex-1 bg-[color:var(--primary)] text-white disabled:opacity-60"
-            >
-              Ajouter
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={addCustom}
+            disabled={!title.trim() || busy}
+            className="task-button w-full bg-[color:var(--primary)] text-white disabled:opacity-60"
+          >
+            Ajouter au {chest.chestName.toLowerCase()}
+          </button>
         </div>
       ) : null}
 
-      <ul className="mt-4 flex flex-1 flex-col gap-2">
-        {rewards.map((reward) => (
+      <ul className="mt-3 flex flex-col gap-2">
+        {items.map((reward) => (
           <li
             key={reward.id}
             className="flex items-center gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-3"
@@ -764,15 +934,9 @@ function RewardsCard({
             <span className="text-2xl" aria-hidden="true">
               {reward.icon}
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-black text-foreground">
-                {reward.title}
-              </p>
-              <p className="text-xs font-bold text-[color:var(--ink-soft)]">
-                {reward.pointsCost} points
-                {reward.isUnlocked ? " · débloquée" : ""}
-              </p>
-            </div>
+            <p className="min-w-0 flex-1 truncate text-base font-black text-foreground">
+              {reward.title}
+            </p>
             <button
               type="button"
               onClick={() => deleteReward(parentId, childId, reward.id)}
@@ -783,22 +947,58 @@ function RewardsCard({
             </button>
           </li>
         ))}
-        {rewards.length === 0 ? (
-          <li className="rounded-2xl border-2 border-dashed border-[color:var(--shell)] p-5 text-center text-sm font-bold text-[color:var(--ink-soft)]">
-            Ajoute des objectifs motivants en un clic.
+        {items.length === 0 ? (
+          <li className="rounded-2xl border-2 border-dashed border-[color:var(--shell)] p-4 text-center text-xs font-bold text-[color:var(--ink-soft)]">
+            Coffre vide — ajoute une surprise.
           </li>
         ) : null}
       </ul>
 
       {showPresets ? (
         <PresetSheet
-          title="Récompenses suggérées"
-          subtitle="Choisis celles qui motiveront ton enfant."
+          title={`Suggestions ${chest.chestName.toLowerCase()}`}
+          subtitle="Choisis les surprises à glisser dans ce coffre."
           items={presetItems}
           onClose={() => setShowPresets(false)}
           onConfirm={addPresets}
         />
       ) : null}
+    </div>
+  );
+}
+
+function RewardsCard({
+  parentId,
+  childId,
+  rewards,
+}: {
+  parentId: string;
+  childId: string;
+  rewards: Reward[];
+}) {
+  return (
+    <section className="panel-card flex flex-col p-5 sm:p-6">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="section-kicker">À débloquer</p>
+          <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
+            Récompenses
+          </h2>
+        </div>
+        <div className="count-pill">{rewards.length}</div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3">
+        {REWARD_TIERS.map((chest) => (
+          <ChestGroup
+            key={chest.tier}
+            parentId={parentId}
+            childId={childId}
+            tier={chest.tier}
+            rewards={rewards}
+          />
+        ))}
+      </div>
     </section>
   );
 }

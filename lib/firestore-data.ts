@@ -20,10 +20,18 @@ import {
   addMission,
   addReward,
   resetDailyMissions,
+  seedStarterKit,
   upsertParent,
 } from "./firestore-schema";
 
-export { addChild, addMission, addReward, resetDailyMissions, upsertParent };
+export {
+  addChild,
+  addMission,
+  addReward,
+  resetDailyMissions,
+  seedStarterKit,
+  upsertParent,
+};
 
 export type MissionStatus = "pending" | "done" | "skipped";
 
@@ -32,7 +40,41 @@ export type Child = {
   name: string;
   avatar: string;
   totalPoints: number;
+  // Série gamification : nombre de matins consécutifs où tout est validé,
+  // et la date (clé YYYY-MM-DD) du dernier coffre du jour ouvert.
+  streak: number;
+  lastStreakDay: string | null;
+  // Dernier tirage par coffre récompense (anti-répétition).
+  chestHistory: ChestHistory;
+  // Personnalisation : photo (dataURL) et son de validation choisi/enregistré.
+  photoURL: string | null;
+  soundId: string | null;
+  customSound: string | null;
 };
+
+// Helpers de gamification purs (sans Firebase), re-exportés ici pour que les
+// composants gardent un point d'import unique.
+import {
+  CHEST_COSTS,
+  pickChestReward,
+  tierForStreak,
+  tierFromPointsCost,
+  todayKey,
+  yesterdayKey,
+  type ChestHistory,
+  type RewardTier,
+} from "./gamification";
+
+export {
+  CHEST_COSTS,
+  REWARD_TIERS,
+  pickChestReward,
+  tierForStreak,
+  tierFromPointsCost,
+  todayKey,
+  yesterdayKey,
+} from "./gamification";
+export type { ChestDraw, ChestHistory, RewardTier } from "./gamification";
 
 export type Mission = {
   id: string;
@@ -51,6 +93,8 @@ export type Reward = {
   pointsCost: number;
   icon: string;
   isUnlocked: boolean;
+  // Coffre dans lequel le parent range cette récompense.
+  tier: RewardTier;
 };
 
 export const MAX_MISSIONS = 6;
@@ -83,6 +127,17 @@ export function subscribeChildren(
           avatar: typeof data.avatar === "string" ? data.avatar : "🧒",
           totalPoints:
             typeof data.totalPoints === "number" ? data.totalPoints : 0,
+          streak: typeof data.streak === "number" ? data.streak : 0,
+          lastStreakDay:
+            typeof data.lastStreakDay === "string" ? data.lastStreakDay : null,
+          chestHistory:
+            data.chestHistory && typeof data.chestHistory === "object"
+              ? (data.chestHistory as ChestHistory)
+              : {},
+          photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
+          soundId: typeof data.soundId === "string" ? data.soundId : null,
+          customSound:
+            typeof data.customSound === "string" ? data.customSound : null,
         };
       })
     );
@@ -144,6 +199,14 @@ export function subscribeRewards(
             typeof data.pointsCost === "number" ? data.pointsCost : 0,
           icon: typeof data.icon === "string" ? data.icon : "🎁",
           isUnlocked: Boolean(data.isUnlocked),
+          tier:
+            data.tier === "bronze" ||
+            data.tier === "silver" ||
+            data.tier === "gold"
+              ? data.tier
+              : tierFromPointsCost(
+                  typeof data.pointsCost === "number" ? data.pointsCost : 0
+                ),
         };
       })
     );
@@ -153,7 +216,9 @@ export function subscribeRewards(
 export function updateChild(
   parentId: string,
   childId: string,
-  data: Partial<Pick<Child, "name" | "avatar">>
+  data: Partial<
+    Pick<Child, "name" | "avatar" | "photoURL" | "soundId" | "customSound">
+  >
 ) {
   return updateDoc(doc(db, "users", parentId, "children", childId), data);
 }
@@ -188,7 +253,9 @@ export function updateReward(
   parentId: string,
   childId: string,
   rewardId: string,
-  data: Partial<Pick<Reward, "title" | "description" | "pointsCost" | "icon">>
+  data: Partial<
+    Pick<Reward, "title" | "description" | "pointsCost" | "icon" | "tier">
+  >
 ) {
   return updateDoc(
     doc(db, "users", parentId, "children", childId, "rewards", rewardId),
@@ -253,6 +320,83 @@ export async function setMissionStatus(
       const total = (typeof current === "number" ? current : 0) + pointsDelta;
       transaction.update(childDoc, { totalPoints: Math.max(0, total) });
     }
+  });
+}
+
+// Ouvre le coffre du jour : incrémente la série une seule fois par jour.
+// Renvoie la nouvelle série + le palier gagné, ou null si déjà ouvert aujourd'hui.
+export async function claimDailyChest(
+  parentId: string,
+  childId: string
+): Promise<{ streak: number; tier: RewardTier } | null> {
+  const childDoc = doc(db, "users", parentId, "children", childId);
+
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(childDoc);
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data();
+    const today = todayKey();
+    const last =
+      typeof data.lastStreakDay === "string" ? data.lastStreakDay : null;
+
+    // Déjà ouvert aujourd'hui : pas de double comptage.
+    if (last === today) {
+      return null;
+    }
+
+    const previousStreak = typeof data.streak === "number" ? data.streak : 0;
+    // Série continue si le dernier coffre datait d'hier, sinon on repart à 1.
+    const newStreak = last === yesterdayKey() ? previousStreak + 1 : 1;
+
+    transaction.update(childDoc, { streak: newStreak, lastStreakDay: today });
+
+    return { streak: newStreak, tier: tierForStreak(newStreak) };
+  });
+}
+
+// Ouvre un coffre récompense : dépense le coût en points et tire une
+// récompense aléatoire (anti-répétition) dans le pool fourni. Atomique.
+// Renvoie l'id de la récompense gagnée, ou null si points insuffisants / pool vide.
+export async function openChest(
+  parentId: string,
+  childId: string,
+  tier: RewardTier,
+  poolIds: string[]
+): Promise<{ rewardId: string } | null> {
+  const cost = CHEST_COSTS[tier];
+  const childDoc = doc(db, "users", parentId, "children", childId);
+
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(childDoc);
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data();
+    const points = typeof data.totalPoints === "number" ? data.totalPoints : 0;
+    if (points < cost || poolIds.length === 0) {
+      return null;
+    }
+
+    const history: ChestHistory =
+      data.chestHistory && typeof data.chestHistory === "object"
+        ? (data.chestHistory as ChestHistory)
+        : {};
+
+    const draw = pickChestReward(poolIds, history[tier]);
+    if (!draw) {
+      return null;
+    }
+
+    transaction.update(childDoc, {
+      totalPoints: Math.max(0, points - cost),
+      [`chestHistory.${tier}`]: { lastId: draw.rewardId, repeats: draw.repeats },
+    });
+
+    return { rewardId: draw.rewardId };
   });
 }
 
