@@ -41,8 +41,12 @@ export default function RootLayout({
     <html
       lang="fr"
       className={`${bodyFont.variable} ${displayFont.variable} ${balooFont.variable} ${nunitoFont.variable} ${luckiestFont.variable} ${fredokaFont.variable} ${quicksandFont.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body
+        className="min-h-full flex flex-col bg-background text-foreground"
+        suppressHydrationWarning
+      >
         <AuthProvider>{children}</AuthProvider>
         <PwaRegistration />
       </body>

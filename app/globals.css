@@ -31,6 +31,7 @@
 html {
   min-height: 100%;
   color-scheme: light;
+  overflow-x: hidden;
 }
 
 body {
@@ -44,6 +45,7 @@ body {
     radial-gradient(56rem 36rem at 46% 100%, rgba(255, 212, 71, 0.12), transparent 68%),
     linear-gradient(145deg, #f9fbff 0%, #eff5ff 48%, #fff8ef 100%);
   background-attachment: fixed;
+  overflow-x: hidden;
 }
 
 a,
@@ -949,7 +951,10 @@ a:focus-visible {
   z-index: 40;
   display: grid;
   place-items: center;
-  padding: 1.25rem;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
+  padding: 0.75rem;
   background: rgba(10, 19, 46, 0.54);
   backdrop-filter: blur(8px);
 }
@@ -973,6 +978,207 @@ a:focus-visible {
     linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
   box-shadow: var(--shadow-strong);
   animation: modal-pop 420ms cubic-bezier(0.18, 0.89, 0.32, 1.18) both;
+}
+
+.parent-section-title {
+  font-size: clamp(1.55rem, 7.2vw, 2.25rem);
+  line-height: 0.98;
+  overflow-wrap: normal;
+}
+
+.rewards-card-header {
+  align-items: end;
+}
+
+.rewards-card-kicker {
+  max-width: max-content;
+  padding-inline: 0.72rem;
+  font-size: clamp(0.64rem, 2.8vw, 0.76rem);
+  letter-spacing: 0.06em;
+}
+
+.preset-sheet {
+  gap: 0;
+}
+
+.preset-sheet-title {
+  font-size: clamp(1.8rem, 8.5vw, 2.4rem);
+  line-height: 0.98;
+}
+
+.preset-sheet-subtitle {
+  max-width: 18rem;
+  font-size: clamp(0.78rem, 3.4vw, 0.9rem);
+  line-height: 1.35;
+}
+
+.preset-grid {
+  grid-template-columns: 1fr;
+  align-content: start;
+}
+
+.preset-item {
+  min-height: 4.15rem;
+  padding: 0.68rem 0.78rem;
+  gap: 0.7rem;
+}
+
+.preset-item-icon {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  text-align: center;
+}
+
+.preset-item-title {
+  font-size: clamp(0.9rem, 3.7vw, 1rem);
+  line-height: 1.14;
+  hyphens: manual;
+  overflow-wrap: break-word;
+}
+
+.preset-item-sub {
+  margin-top: 0.12rem;
+  font-size: clamp(0.72rem, 3vw, 0.78rem);
+  line-height: 1.15;
+}
+
+.preset-item-check {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.chest-group-title,
+.parent-item-title {
+  font-size: clamp(0.92rem, 4.1vw, 1rem);
+  line-height: 1.12;
+}
+
+.chest-group-sub {
+  font-size: clamp(0.72rem, 3vw, 0.78rem);
+  line-height: 1.2;
+}
+
+.mission-row,
+.reward-row {
+  gap: 0.72rem;
+  padding: 0.72rem;
+}
+
+.mission-row-icon,
+.reward-row-icon {
+  flex: 0 0 2rem;
+  text-align: center;
+}
+
+.parent-item-title {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: clip;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+
+.chest-action-button {
+  line-height: 1.1;
+}
+
+@media (max-width: 380px) {
+  .modal-backdrop {
+    padding: 0.35rem;
+  }
+
+  .preset-sheet {
+    width: min(100%, calc(100vw - 0.7rem));
+    max-height: calc(100dvh - 0.7rem);
+    border-radius: 1.25rem;
+    padding: 1rem;
+  }
+
+  .preset-sheet-close {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .preset-grid {
+    margin-top: 1rem;
+    gap: 0.55rem;
+  }
+
+  .preset-item {
+    min-height: 3.85rem;
+    border-radius: 1rem;
+    padding: 0.58rem 0.68rem;
+  }
+
+  .preset-item-icon {
+    width: 1.6rem;
+    font-size: 1.18rem;
+  }
+
+  .preset-item-check {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .chest-group {
+    border-radius: 1.25rem;
+    padding: 0.85rem;
+  }
+
+  .chest-group-icon {
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 0.9rem;
+    font-size: 1.3rem;
+  }
+
+  .chest-group-actions {
+    gap: 0.5rem;
+  }
+
+  .chest-group-actions button {
+    min-height: 2.45rem;
+    border-radius: 1rem;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .rewards-card-header {
+    grid-template-columns: minmax(0,1fr) 2.75rem;
+    gap: 0.5rem;
+  }
+
+  .rewards-card-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 1rem;
+    font-size: 1.4rem;
+  }
+
+  .rewards-card-kicker {
+    padding: 0.4rem 0.62rem;
+    font-size: 0.62rem;
+  }
+
+  .mission-row,
+  .reward-row {
+    align-items: flex-start;
+  }
+
+  .mission-row-icon,
+  .reward-row-icon {
+    flex-basis: 1.8rem;
+    font-size: 1.35rem;
+  }
+
+  .parent-item-title {
+    font-size: 0.9rem;
+    line-height: 1.12;
+  }
 }
 
 .chest-modal-card::before {
@@ -1764,5 +1970,85 @@ a:focus-visible {
     opacity: 0;
     transform: translateX(-50%) translateY(-4px);
     visibility: hidden;
+  }
+}
+
+.skad-landing-main {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  padding: clamp(1.25rem, 5vw, 2rem) clamp(1rem, 4vw, 1.5rem) 1rem;
+}
+
+.skad-landing-content {
+  width: 100%;
+  max-width: 42rem;
+  margin: auto;
+  text-align: center;
+}
+
+.skad-landing-title {
+  margin: 0;
+  font-size: clamp(3.5rem, 18vw, 6rem);
+  font-weight: 800;
+  line-height: 0.88;
+  overflow-wrap: anywhere;
+}
+
+.skad-landing-copy {
+  display: grid;
+  max-width: 35rem;
+  margin: clamp(1.25rem, 4vw, 1.65rem) auto 0;
+  gap: clamp(0.65rem, 2vw, 0.9rem);
+  color: #6f6078;
+  font-size: clamp(0.94rem, 2.6vw, 1rem);
+  font-weight: 700;
+  line-height: 1.68;
+}
+
+.skad-landing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.35rem;
+  max-width: 100%;
+  margin-top: clamp(1.35rem, 5vw, 1.9rem);
+  border-radius: 1.1rem;
+  padding: 0.88rem 1.45rem;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.skad-landing-footer {
+  display: flex;
+  width: 100%;
+  max-width: 52rem;
+  margin: clamp(1rem, 4vw, 1.5rem) auto 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem 1rem;
+  color: #9a8aa3;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .skad-landing-footer {
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .skad-landing-copy {
+    text-align: left;
+  }
+
+  .skad-landing-cta {
+    width: min(100%, 22rem);
   }
 }

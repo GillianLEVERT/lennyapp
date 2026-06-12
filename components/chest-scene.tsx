@@ -60,6 +60,21 @@ export function ChestScene({
 
     const W = () => mount.clientWidth || 800;
     const H = () => mount.clientHeight || 500;
+    const aspect = () => W() / H();
+    const closedCameraZ = () => (aspect() < 0.72 ? 14.2 : aspect() < 0.95 ? 10.4 : 8.2);
+    const openCameraZ = () => (aspect() < 0.72 ? 12.4 : aspect() < 0.95 ? 9.2 : 7.2);
+    const sceneLayout = () => {
+      const ratio = aspect();
+      const width = W();
+      if (ratio >= 1.35 && width >= 980) {
+        return { walkStartX: -4.4, chestX: 1.3 };
+      }
+      if (ratio >= 0.72) {
+        return { walkStartX: -1.7, chestX: 0.75 };
+      }
+      return { walkStartX: -1.35, chestX: 0.55 };
+    };
+    let layout = sceneLayout();
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -72,8 +87,8 @@ export function ChestScene({
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(S.fog, 9, 20);
 
-    const camera = new THREE.PerspectiveCamera(42, W() / H(), 0.1, 100);
-    camera.position.set(0, 3.0, 8.2);
+    const camera = new THREE.PerspectiveCamera(aspect() < 0.72 ? 56 : 42, aspect(), 0.1, 100);
+    camera.position.set(0, 3.0, closedCameraZ());
     camera.lookAt(0, 1.1, 0);
 
     /* lumières */
@@ -364,7 +379,7 @@ export function ChestScene({
       armR.add(wand);
     }
 
-    blob.position.set(-4.4, 0, 0.4);
+    blob.position.set(layout.walkStartX, 0, 0.4);
     scene.add(blob);
 
     /* ---------- COFFRE ---------- */
@@ -477,7 +492,7 @@ export function ChestScene({
     inner.position.set(0, 1.04, 0);
     chest.add(inner);
 
-    chest.position.set(1.3, 0, 0);
+    chest.position.set(layout.chestX, 0, 0);
     scene.add(chest);
 
     /* ---------- GEMME / RÉCOMPENSE ---------- */
@@ -489,7 +504,7 @@ export function ChestScene({
       emissiveIntensity: 0.9,
     });
     const gem = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), gemMat);
-    gem.position.set(1.3, 1.0, 0);
+    gem.position.set(layout.chestX, 1.0, 0);
     gem.scale.setScalar(0.001);
     gem.castShadow = true;
     scene.add(gem);
@@ -530,7 +545,7 @@ export function ChestScene({
       particles.push({ m, vel: new THREE.Vector3(), rot: new THREE.Vector3(), life: 0 });
     }
     function burst() {
-      const origin = new THREE.Vector3(1.3, 1.15, 0);
+      const origin = new THREE.Vector3(layout.chestX, 1.15, 0);
       const active = Math.round(72 * Math.max(0, intensityRef.current));
       particles.forEach((p, i) => {
         if (i >= active) {
@@ -559,9 +574,20 @@ export function ChestScene({
       flash: 0,
       raf: 0,
       blink: 0,
-      walkStartX: -4.4,
-      chestX: 1.3,
+      walkStartX: layout.walkStartX,
+      chestX: layout.chestX,
     };
+    function applySceneLayout(resetBlob: boolean) {
+      layout = sceneLayout();
+      st.walkStartX = layout.walkStartX;
+      st.chestX = layout.chestX;
+      chest.position.x = st.chestX;
+      gem.position.x = st.chestX;
+      halo.position.copy(gem.position);
+      if (resetBlob || st.phase === "idle") {
+        blob.position.set(st.walkStartX, 0, 0.4);
+      }
+    }
     apiRef.current = {
       start(reducedNow: boolean) {
         st.phase = reducedNow ? "open" : "walk";
@@ -577,7 +603,7 @@ export function ChestScene({
         st.t = 0;
         st.opened = false;
         st.flash = 0;
-        blob.position.set(-4.4, 0, 0.4);
+        applySceneLayout(true);
         blob.scale.set(1, 1, 1);
         blob.rotation.y = 0;
         armL.rotation.set(0, 0, -0.35);
@@ -596,8 +622,11 @@ export function ChestScene({
 
     function resize() {
       renderer.setSize(W(), H());
-      camera.aspect = W() / H();
+      camera.aspect = aspect();
+      camera.fov = aspect() < 0.72 ? 56 : 42;
+      camera.position.z = closedCameraZ();
       camera.updateProjectionMatrix();
+      applySceneLayout(false);
     }
     const ro = new ResizeObserver(resize);
     ro.observe(mount);
@@ -622,7 +651,7 @@ export function ChestScene({
         blob.position.y = Math.sin(tt * 2.2) * 0.06;
         const sq = 1 + Math.sin(tt * 2.2) * 0.04;
         blob.scale.set(2 - sq, sq, 2 - sq);
-        blob.position.x = -4.4 + Math.sin(tt * 0.6) * 0.15;
+        blob.position.x = st.walkStartX + Math.sin(tt * 0.6) * 0.15;
       } else if (st.phase === "walk") {
         st.t += dt;
         const dur = 2.4;
@@ -731,7 +760,7 @@ export function ChestScene({
       });
 
       // léger dolly caméra à l'ouverture
-      const target = st.phase === "open" ? 7.2 : 8.2;
+      const target = st.phase === "open" ? openCameraZ() : closedCameraZ();
       camera.position.z += (target - camera.position.z) * Math.min(1, dt * 2);
       camera.position.y += (3.0 - camera.position.y) * Math.min(1, dt * 2);
       camera.lookAt(0, 1.1, 0);

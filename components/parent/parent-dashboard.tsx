@@ -288,18 +288,18 @@ function PresetSheet({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-[2rem] bg-[color:var(--surface)] p-5 sm:p-6"
+        className="preset-sheet flex max-h-[calc(100dvh-1.5rem)] w-[min(100%,calc(100vw-1.5rem))] max-w-lg min-w-0 flex-col rounded-[1.5rem] bg-[color:var(--surface)] p-4 sm:max-h-[85vh] sm:rounded-[2rem] sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-3xl leading-none text-foreground">
+        <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h2 className="preset-sheet-title break-words font-display text-3xl leading-none text-foreground">
               {title}
             </h2>
-            <p className="mt-2 text-sm font-bold text-[color:var(--ink-soft)]">
+            <p className="preset-sheet-subtitle mt-2 text-sm font-bold text-[color:var(--ink-soft)]">
               {subtitle}
             </p>
           </div>
@@ -307,13 +307,13 @@ function PresetSheet({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--surface-soft)] text-[color:var(--ink-soft)]"
+            className="preset-sheet-close flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--surface-soft)] text-[color:var(--ink-soft)]"
           >
             <PiXBold aria-hidden="true" />
           </button>
         </div>
 
-        <div className="mt-5 grid flex-1 gap-2 overflow-y-auto sm:grid-cols-2">
+        <div className="preset-grid mt-5 grid min-h-0 flex-1 gap-2 overflow-y-auto sm:grid-cols-2">
           {items.map((item) => {
             const isSelected = selected.includes(item.id);
             const disabled =
@@ -326,25 +326,25 @@ function PresetSheet({
                 disabled={disabled}
                 onClick={() => toggle(item.id)}
                 aria-pressed={isSelected}
-                className={`flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition ${
+                className={`preset-item flex min-w-0 items-center gap-3 rounded-2xl border-2 p-3 text-left transition ${
                   isSelected
                     ? "border-[color:var(--primary)] bg-[color:var(--shell)]"
                     : "border-transparent bg-[color:var(--surface-soft)]"
                 } ${item.alreadyAdded ? "opacity-50" : ""} ${disabled && !item.alreadyAdded ? "opacity-40" : ""}`}
               >
-                <span className="text-2xl" aria-hidden="true">
+                <span className="preset-item-icon text-2xl" aria-hidden="true">
                   {item.icon}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words text-base font-black leading-tight text-foreground">
+                  <span className="preset-item-title block break-words text-base font-black leading-tight text-foreground">
                     {item.title}
                   </span>
-                  <span className="block text-xs font-bold text-[color:var(--ink-soft)]">
+                  <span className="preset-item-sub block text-xs font-bold text-[color:var(--ink-soft)]">
                     {item.alreadyAdded ? "Déjà ajoutée" : item.sub}
                   </span>
                 </span>
                 <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                  className={`preset-item-check flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
                     isSelected
                       ? "bg-[color:var(--primary)] text-white"
                       : "bg-white/0 text-transparent"
@@ -358,7 +358,7 @@ function PresetSheet({
           })}
         </div>
 
-        <div className="mt-5 flex gap-3">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
@@ -425,7 +425,7 @@ function Header({
   );
 }
 
-function Onboarding({
+function ChildCreation({
   parentId,
   onCreated,
 }: {
@@ -498,7 +498,7 @@ function Onboarding({
   );
 }
 
-function OnboardingSetup({
+function FirstSetup({
   parentId,
   child,
   missions,
@@ -512,8 +512,8 @@ function OnboardingSetup({
   onDone: () => void;
 }) {
   return (
-    <section className="flex flex-col gap-5">
-      <div className="panel-card p-5 text-center sm:p-6">
+    <section className="flex min-w-0 flex-col gap-4 overflow-hidden sm:gap-5">
+      <div className="panel-card min-w-0 p-4 text-center sm:p-6">
         <span className="text-5xl" aria-hidden="true">
           {child.avatar}
         </span>
@@ -527,7 +527,7 @@ function OnboardingSetup({
         </p>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <MissionsCard
           parentId={parentId}
           childId={child.id}
@@ -541,7 +541,7 @@ function OnboardingSetup({
         onClick={onDone}
         className="task-button self-center bg-[color:var(--success)] px-8 text-white"
       >
-        Terminer l&apos;onboarding
+        Terminer la préparation
       </button>
     </section>
   );
@@ -952,8 +952,8 @@ function MissionsCard({
   }
 
   return (
-    <section className="panel-card flex flex-col p-5 sm:p-6">
-      <div className="flex items-end justify-between gap-3">
+    <section className="panel-card flex min-w-0 flex-col overflow-hidden p-4 sm:p-6">
+      <div className="flex min-w-0 items-end justify-between gap-3">
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -961,9 +961,9 @@ function MissionsCard({
           >
             🎯
           </span>
-          <div>
+          <div className="min-w-0">
             <p className="section-kicker">Routine du matin</p>
-            <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
+            <h2 className="parent-section-title mt-2 break-words font-display text-3xl leading-none text-foreground">
               Missions
             </h2>
           </div>
@@ -993,8 +993,8 @@ function MissionsCard({
       </div>
 
       {showCustom ? (
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-4">
-          <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="mt-4 flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl bg-[color:var(--surface-soft)] p-4">
+          <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1">
             {MISSION_ICONS.map((option) => (
               <button
                 key={option}
@@ -1016,8 +1016,8 @@ function MissionsCard({
             placeholder="Ex : Nourrir le chat"
             className={inputClass}
           />
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+            <label className="flex min-w-0 items-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]">
               Points
               <input
                 type="number"
@@ -1033,7 +1033,7 @@ function MissionsCard({
               type="button"
               onClick={addCustom}
               disabled={!title.trim() || busy}
-              className="task-button flex-1 bg-[color:var(--primary)] text-white disabled:opacity-60"
+              className="task-button w-full min-w-0 bg-[color:var(--primary)] text-white disabled:opacity-60"
             >
               Ajouter
             </button>
@@ -1045,13 +1045,13 @@ function MissionsCard({
         {missions.map((mission) => (
           <li
             key={mission.id}
-            className="flex items-center gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-3"
+            className="mission-row flex min-w-0 items-center gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-3"
           >
-            <span className="text-2xl" aria-hidden="true">
+            <span className="mission-row-icon text-2xl" aria-hidden="true">
               {mission.icon}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-black text-foreground">
+              <p className="parent-item-title mission-row-title text-base font-black text-foreground">
                 {mission.title}
               </p>
               <p className="text-xs font-bold text-[color:var(--ink-soft)]">
@@ -1160,30 +1160,30 @@ function ChestGroup({
   }
 
   return (
-    <div className="rounded-[1.5rem] border-2 border-[color:var(--shell)] p-4">
-      <div className="flex items-center gap-3">
+    <div className="chest-group min-w-0 overflow-hidden rounded-[1.5rem] border-2 border-[color:var(--shell)] p-3 sm:p-4">
+      <div className="flex min-w-0 items-center gap-3">
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-2xl"
+          className="chest-group-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-2xl"
           style={{ backgroundColor: `${chest.accent}22`, color: chest.accent }}
         >
           <PiTreasureChestFill aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-black text-foreground">
+          <p className="chest-group-title text-base font-black text-foreground">
             {chest.chestName}
           </p>
-          <p className="text-xs font-bold text-[color:var(--ink-soft)]">
+          <p className="chest-group-sub text-xs font-bold text-[color:var(--ink-soft)]">
             {cost} pts · {items.length} récompense{items.length > 1 ? "s" : ""}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="chest-group-actions mt-3 grid grid-cols-2 gap-2">
         {tierPresets.length > 0 ? (
           <button
             type="button"
             onClick={() => setShowPresets(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--tertiary)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink)]"
+            className="chest-action-button inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-2xl bg-[color:var(--tertiary)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink)]"
           >
             <PiSparkleFill aria-hidden="true" /> Suggérer
           </button>
@@ -1191,15 +1191,15 @@ function ChestGroup({
         <button
           type="button"
           onClick={() => setShowCustom((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink-soft)]"
+          className="chest-action-button inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-xs font-extrabold text-[color:var(--ink-soft)]"
         >
           <PiPlusBold aria-hidden="true" /> Sur-mesure
         </button>
       </div>
 
       {showCustom ? (
-        <div className="mt-3 flex flex-col gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-4">
-          <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="mt-3 flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl bg-[color:var(--surface-soft)] p-4">
+          <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1">
             {REWARD_ICONS.map((option) => (
               <button
                 key={option}
@@ -1236,12 +1236,12 @@ function ChestGroup({
         {items.map((reward) => (
           <li
             key={reward.id}
-            className="flex items-center gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-3"
+            className="reward-row flex min-w-0 items-center gap-3 rounded-2xl bg-[color:var(--surface-soft)] p-3"
           >
-            <span className="text-2xl" aria-hidden="true">
+            <span className="reward-row-icon text-2xl" aria-hidden="true">
               {reward.icon}
             </span>
-            <p className="min-w-0 flex-1 truncate text-base font-black text-foreground">
+            <p className="parent-item-title reward-row-title min-w-0 flex-1 text-base font-black text-foreground">
               {reward.title}
             </p>
             <button
@@ -1284,18 +1284,18 @@ function RewardsCard({
   rewards: Reward[];
 }) {
   return (
-    <section className="panel-card flex flex-col p-5 sm:p-6">
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <section className="panel-card flex min-w-0 flex-col overflow-hidden p-4 sm:p-6">
+      <div className="rewards-card-header grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
             aria-hidden="true"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--tertiary)]/25 text-2xl"
+            className="rewards-card-icon flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--tertiary)]/25 text-2xl"
           >
             🎁
           </span>
-          <div>
-            <p className="section-kicker">À débloquer</p>
-            <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
+          <div className="min-w-0">
+            <p className="section-kicker rewards-card-kicker">À débloquer</p>
+            <h2 className="parent-section-title mt-2 break-words font-display text-3xl leading-none text-foreground">
               Récompenses
             </h2>
           </div>
@@ -1324,27 +1324,27 @@ export function ParentDashboard() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [onboardingSetup, setOnboardingSetup] = useState<{
+  const [firstSetup, setFirstSetup] = useState<{
     parentId: string;
     childId: string;
   } | null>(null);
 
   const parentId = user?.uid ?? null;
-  const onboardingChildId =
-    onboardingSetup?.parentId === parentId ? onboardingSetup.childId : null;
+  const firstSetupChildId =
+    firstSetup?.parentId === parentId ? firstSetup.childId : null;
 
   const activeChildId = useMemo(() => {
     if (
-      onboardingChildId &&
-      children.some((child) => child.id === onboardingChildId)
+      firstSetupChildId &&
+      children.some((child) => child.id === firstSetupChildId)
     ) {
-      return onboardingChildId;
+      return firstSetupChildId;
     }
     if (selectedChildId && children.some((child) => child.id === selectedChildId)) {
       return selectedChildId;
     }
     return children[0]?.id ?? null;
-  }, [onboardingChildId, selectedChildId, children]);
+  }, [firstSetupChildId, selectedChildId, children]);
 
   useEffect(() => {
     if (!parentId) {
@@ -1376,9 +1376,9 @@ export function ParentDashboard() {
     [children, activeChildId]
   );
 
-  const onboardingChild = useMemo(
-    () => children.find((child) => child.id === onboardingChildId) ?? null,
-    [children, onboardingChildId]
+  const firstSetupChild = useMemo(
+    () => children.find((child) => child.id === firstSetupChildId) ?? null,
+    [children, firstSetupChildId]
   );
 
   if (loading) {
@@ -1396,25 +1396,25 @@ export function ParentDashboard() {
   }
 
   return (
-    <main className="page-stage min-h-screen px-4 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <main className="page-stage min-h-screen overflow-x-hidden px-2 py-4 sm:px-6 sm:py-8">
+      <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-5">
         <Header
           name={user.displayName ?? user.email ?? "Parent"}
           onSignOut={() => {
-            setOnboardingSetup(null);
+            setFirstSetup(null);
             setSelectedChildId(null);
             void signOut();
           }}
         />
 
-        {onboardingChildId ? (
-          onboardingChild ? (
-            <OnboardingSetup
+        {firstSetupChildId ? (
+          firstSetupChild ? (
+            <FirstSetup
               parentId={parentId}
-              child={onboardingChild}
+              child={firstSetupChild}
               missions={missions}
               rewards={rewards}
-              onDone={() => setOnboardingSetup(null)}
+              onDone={() => setFirstSetup(null)}
             />
           ) : (
             <section className="panel-card mx-auto w-full max-w-lg p-6 text-center sm:p-8">
@@ -1424,11 +1424,11 @@ export function ParentDashboard() {
             </section>
           )
         ) : children.length === 0 ? (
-          <Onboarding
+          <ChildCreation
             parentId={parentId}
             onCreated={(childId) => {
               setSelectedChildId(childId);
-              setOnboardingSetup({ parentId, childId });
+              setFirstSetup({ parentId, childId });
             }}
           />
         ) : (
@@ -1441,7 +1441,7 @@ export function ParentDashboard() {
             />
 
             {activeChild ? (
-              <div className="grid gap-5 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                 <MissionsCard
                   parentId={parentId}
                   childId={activeChild.id}
@@ -1461,56 +1461,320 @@ export function ParentDashboard() {
   );
 }
 
-function SignInScreen() {
-  const { signIn } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+type AuthMode = "signin" | "signup" | "reset";
 
-  async function handleSignIn() {
+function authErrorMessage(error: unknown): string {
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String(error.code)
+      : "";
+
+  if (code.includes("email-already-in-use")) {
+    return "Ce compte existe déjà. Essaie plutôt de te connecter.";
+  }
+  if (code.includes("invalid-email")) {
+    return "Cette adresse e-mail a l'air bizarre. Vérifie vite fait.";
+  }
+  if (code.includes("invalid-credential") || code.includes("wrong-password")) {
+    return "E-mail ou mot de passe incorrect.";
+  }
+  if (code.includes("weak-password")) {
+    return "Choisis un mot de passe d'au moins 6 caractères.";
+  }
+  if (code.includes("user-not-found")) {
+    return "Aucun compte trouvé avec cette adresse.";
+  }
+  if (code.includes("too-many-requests")) {
+    return "Trop d'essais d'un coup. Attends un petit moment puis réessaie.";
+  }
+  if (code.includes("popup-closed-by-user")) {
+    return "Connexion annulée. Rien de grave.";
+  }
+
+  return "Ça n'a pas marché. Réessaie dans un instant.";
+}
+
+function SignInScreen() {
+  const { resetPassword, signIn, signInWithEmail, signUpWithEmail } = useAuth();
+  const [mode, setMode] = useState<AuthMode>("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const isSignup = mode === "signup";
+  const isReset = mode === "reset";
+  const title = isReset
+    ? "On récupère l'accès"
+    : isSignup
+      ? "Créer ton compte"
+      : "Content de te revoir";
+
+  function switchMode(nextMode: AuthMode) {
+    setMode(nextMode);
     setError(null);
+    setNotice(null);
+  }
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setNotice(null);
     try {
       await signIn();
-    } catch {
-      setError("Connexion impossible. Réessaie.");
+    } catch (nextError) {
+      setError(authErrorMessage(nextError));
+    }
+  }
+
+  async function handleEmailAuth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedEmail = email.trim();
+
+    setError(null);
+    setNotice(null);
+
+    if (!trimmedEmail) {
+      setError("Ajoute ton e-mail pour continuer.");
+      return;
+    }
+
+    if (isReset) {
+      setBusy(true);
+      try {
+        await resetPassword(trimmedEmail);
+        setNotice("Lien envoyé. Regarde ta boîte mail quand tu as deux minutes.");
+      } catch (nextError) {
+        setError(authErrorMessage(nextError));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (!password) {
+      setError("Ajoute ton mot de passe.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (isSignup) {
+        await signUpWithEmail(trimmedEmail, password, name, remember);
+      } else {
+        await signInWithEmail(trimmedEmail, password, remember);
+      }
+    } catch (nextError) {
+      setError(authErrorMessage(nextError));
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <main className="page-stage flex min-h-screen items-center justify-center px-4 py-8">
-      <section className="panel-card mx-auto w-full max-w-md p-7 text-center sm:p-8">
-        <span className="text-5xl" aria-hidden="true">
-          🦸
-        </span>
-        <p className="section-kicker mt-4">Espace parent</p>
-        <h1 className="mt-2 font-display text-4xl leading-none text-foreground sm:text-5xl">
-          Skadoush
-        </h1>
-        <p className="mx-auto mt-3 max-w-sm text-base font-bold leading-7 text-[color:var(--ink-soft)]">
-          Connecte-toi pour préparer les missions du matin et les récompenses de
-          ton enfant.
-        </p>
+    <main className="page-stage flex min-h-screen flex-col items-center justify-start gap-4 px-3 py-4 sm:justify-center sm:gap-5 sm:px-5 sm:py-8">
+      <section className="panel-card mx-auto grid w-full max-w-4xl gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:p-8">
+        <div className="flex flex-col justify-between rounded-[1.35rem] bg-[color:var(--primary)] p-5 text-white sm:rounded-[1.5rem] sm:p-6">
+          <div className="text-center">
+            <h1 className="font-display text-5xl leading-none sm:text-7xl">
+              Skadoush
+            </h1>
+            <h2 className="mt-5 font-display text-3xl leading-none sm:mt-7 sm:text-4xl">
+              Bienvenue dans le cockpit du matin.
+            </h2>
+            <p className="mt-4 text-base font-bold leading-7 text-white/90">
+              L&apos;app qui transforme les petites routines en grandes victoires,
+              sans mettre toute la famille au garde-à-vous.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={handleSignIn}
-          className="task-button mt-6 w-full bg-[color:var(--primary)] text-white"
-        >
-          Continuer avec Google
-        </button>
+          <div className="mt-6 grid gap-2 text-sm font-extrabold text-white/90 sm:mt-8 sm:gap-3">
+            <span className="rounded-2xl bg-white/15 px-4 py-3">
+              Missions simples
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-3">
+              Coffres et récompenses
+            </span>
+            <span className="rounded-2xl bg-white/15 px-4 py-3">
+              Un compte, toute la tribu
+            </span>
+          </div>
+        </div>
 
-        {error ? (
-          <p className="mt-4 text-sm font-bold text-[color:var(--secondary)]">
-            {error}
-          </p>
-        ) : null}
+        <div className="flex flex-col">
+          <div className="flex rounded-2xl bg-[color:var(--surface-soft)] p-1">
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className={`flex-1 rounded-xl px-3 py-3 text-sm font-black transition ${
+                mode === "signin"
+                  ? "bg-[color:var(--surface)] text-foreground shadow-sm"
+                  : "text-[color:var(--ink-soft)]"
+              }`}
+            >
+              Se connecter
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("signup")}
+              className={`flex-1 rounded-xl px-3 py-3 text-sm font-black transition ${
+                mode === "signup"
+                  ? "bg-[color:var(--surface)] text-foreground shadow-sm"
+                  : "text-[color:var(--ink-soft)]"
+              }`}
+            >
+              Créer un compte
+            </button>
+          </div>
 
-        <Link
-          href="/"
-          className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
-        >
-          <PiArrowLeftBold aria-hidden="true" />
-          Retour au jeu
-        </Link>
+          <div className="mt-5 sm:mt-7">
+            <p className="section-kicker">Compte adulte</p>
+            <h2 className="mt-3 font-display text-3xl leading-none text-foreground sm:text-4xl">
+              {title}
+            </h2>
+            <p className="mt-3 text-base font-bold leading-7 text-[color:var(--ink-soft)]">
+              {isReset
+                ? "Entre ton e-mail, on t'envoie un lien pour repartir tranquille."
+                : "Google ou e-mail classique, choisis ce qui t'arrange."}
+            </p>
+          </div>
+
+          {!isReset ? (
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={busy}
+              className="task-button mt-6 w-full bg-[color:var(--foreground)] text-white disabled:opacity-60"
+            >
+              Continuer avec Google
+            </button>
+          ) : null}
+
+          <div className="my-5 flex items-center gap-3 text-xs font-black uppercase tracking-[0.08em] text-[color:var(--ink-soft)]">
+            <span className="h-px flex-1 bg-[color:var(--shell)]" />
+            {isReset ? "Reset" : "ou"}
+            <span className="h-px flex-1 bg-[color:var(--shell)]" />
+          </div>
+
+          <form className="flex flex-col gap-3" onSubmit={handleEmailAuth}>
+            {isSignup ? (
+              <label className="text-left text-sm font-black text-[color:var(--ink-soft)]">
+                Ton prénom
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  autoComplete="given-name"
+                  placeholder="Ex : Camille"
+                  className={`${inputClass} mt-2`}
+                />
+              </label>
+            ) : null}
+
+            <label className="text-left text-sm font-black text-[color:var(--ink-soft)]">
+              E-mail
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                placeholder="toi@email.com"
+                className={`${inputClass} mt-2`}
+              />
+            </label>
+
+            {!isReset ? (
+              <label className="text-left text-sm font-black text-[color:var(--ink-soft)]">
+                Mot de passe
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  placeholder="Au moins 6 caractères"
+                  className={`${inputClass} mt-2`}
+                />
+              </label>
+            ) : null}
+
+            {!isReset ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    className="h-4 w-4 accent-[color:var(--primary)]"
+                  />
+                  Rester connecté
+                </label>
+                <button
+                  type="button"
+                  onClick={() => switchMode("reset")}
+                  className="text-sm font-extrabold text-[color:var(--primary)]"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="task-button mt-2 w-full bg-[color:var(--primary)] text-white disabled:opacity-60"
+            >
+              {busy
+                ? "Deux secondes..."
+                : isReset
+                  ? "Envoyer le lien"
+                  : isSignup
+                    ? "Créer le compte"
+                    : "Se connecter"}
+            </button>
+          </form>
+
+          {error ? (
+            <p className="mt-4 rounded-2xl bg-[color:var(--secondary)]/10 px-4 py-3 text-sm font-bold text-[color:var(--secondary)]">
+              {error}
+            </p>
+          ) : null}
+
+          {notice ? (
+            <p className="mt-4 rounded-2xl bg-[color:var(--success)]/12 px-4 py-3 text-sm font-bold text-[color:var(--success)]">
+              {notice}
+            </p>
+          ) : null}
+
+          {isReset ? (
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className="mt-5 text-sm font-extrabold text-[color:var(--ink-soft)]"
+            >
+              Retour à la connexion
+            </button>
+          ) : null}
+
+          <Link
+            href="/"
+            className="mt-6 inline-flex items-center justify-center gap-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
+          >
+            <PiArrowLeftBold aria-hidden="true" />
+            Retour à l&apos;accueil
+          </Link>
+        </div>
       </section>
+
+      <footer className="mx-auto flex w-full max-w-4xl flex-wrap justify-center gap-2 px-1 text-center text-xs font-bold text-[color:var(--ink-soft)] sm:justify-between sm:gap-3 sm:text-left">
+        <a href="mailto:gillian.levert.dev@gmail.com">
+          gillian.levert.dev@gmail.com
+        </a>
+        <a href="https://www.gillianlevert.fr" target="_blank" rel="noreferrer">
+          www.gillianlevert.fr
+        </a>
+      </footer>
     </main>
   );
 }

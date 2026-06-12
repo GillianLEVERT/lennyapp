@@ -31,24 +31,39 @@ export function SoundPicker({ soundId, customSound, onChange }: SoundPickerProps
 
   const activeId = soundId ?? "default";
 
+  function clearRecordingTimeout() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }
+
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      clearRecordingTimeout();
       recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
   async function startRecording() {
     setError(null);
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    if (recording) {
+      return;
+    }
+
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
       setError("Micro non disponible sur cet appareil.");
       return;
     }
 
+    let stream: MediaStream | null = null;
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
 
@@ -59,16 +74,26 @@ export function SoundPicker({ soundId, customSound, onChange }: SoundPickerProps
       };
 
       recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
+        clearRecordingTimeout();
+        recorder.stream.getTracks().forEach((track) => track.stop());
+        recorderRef.current = null;
         setRecording(false);
+
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || "audio/webm",
         });
+        chunksRef.current = [];
+
         if (blob.size === 0) {
           return;
         }
-        const dataUrl = await blobToDataUrl(blob);
-        onChange({ soundId: CUSTOM_SOUND_ID, customSound: dataUrl });
+
+        try {
+          const dataUrl = await blobToDataUrl(blob);
+          onChange({ soundId: CUSTOM_SOUND_ID, customSound: dataUrl });
+        } catch {
+          setError("Enregistrement illisible. Réessaie.");
+        }
       };
 
       recorder.start();
@@ -82,15 +107,15 @@ export function SoundPicker({ soundId, customSound, onChange }: SoundPickerProps
         }
       }, MAX_RECORDING_MS);
     } catch {
+      stream?.getTracks().forEach((track) => track.stop());
       setError("Autorise le micro pour enregistrer un son.");
       setRecording(false);
+      recorderRef.current = null;
     }
   }
 
   function stopRecording() {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    clearRecordingTimeout();
     if (recorderRef.current?.state === "recording") {
       recorderRef.current.stop();
     }

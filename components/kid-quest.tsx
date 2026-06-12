@@ -11,7 +11,6 @@ import nextDynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   PiGearSixFill,
-  PiLockFill,
   PiSpeakerHighFill,
   PiSpeakerSlashFill,
 } from "react-icons/pi";
@@ -137,21 +136,21 @@ function TopBar({
     ["chest", "Coffre", "🎁"],
   ];
   return (
-    <div style={{ display: "grid", gap: 12, padding: "4px 2px 0" }}>
+    <div style={{ display: "grid", gap: 12, padding: "4px 2px 0", minWidth: 0 }}>
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "minmax(0,1fr) auto",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
+          gap: 8,
+          minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 52, height: 52 }}>
-            <BlobMascot ui={ui} size={52} waveKey={ui.character} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <div style={{ width: 46, height: 46, flex: "0 0 46px" }}>
+            <BlobMascot ui={ui} size={46} waveKey={ui.character} />
           </div>
-          <div style={{ lineHeight: 1.1 }}>
+          <div style={{ lineHeight: 1.1, minWidth: 0 }}>
             <div
               style={{
                 fontFamily: ui.fontBody,
@@ -168,8 +167,11 @@ function TopBar({
               style={{
                 fontFamily: ui.fontTitle,
                 fontWeight: ui.titleWeight,
-                fontSize: 20,
+                fontSize: 18,
                 color: ui.text,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
               {child.name}
@@ -177,15 +179,24 @@ function TopBar({
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 6,
+            minWidth: 0,
+          }}
+        >
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              padding: "7px 14px 7px 10px",
+              gap: 5,
+              padding: "6px 10px 6px 8px",
               borderRadius: 999,
               background: rgba(ui.accents[3], ui.glass ? 0.22 : 0.16),
+              minWidth: 0,
             }}
           >
             <span style={{ fontSize: 18 }} aria-hidden="true">
@@ -196,7 +207,7 @@ function TopBar({
               style={{
                 fontFamily: ui.fontTitle,
                 fontWeight: ui.titleWeight,
-                fontSize: 20,
+                fontSize: 18,
                 color: ui.text,
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -223,8 +234,9 @@ function TopBar({
               appearance: "none",
               border: "none",
               cursor: "pointer",
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
+              flex: "0 0 38px",
               borderRadius: "50%",
               display: "grid",
               placeItems: "center",
@@ -244,8 +256,9 @@ function TopBar({
             aria-label="Espace parent"
             className="skad-focus"
             style={{
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
+              flex: "0 0 38px",
               borderRadius: "50%",
               display: "grid",
               placeItems: "center",
@@ -261,10 +274,13 @@ function TopBar({
 
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "repeat(3,minmax(0,1fr))",
           gap: 4,
           padding: 4,
-          justifySelf: "center",
+          justifySelf: "stretch",
+          width: "100%",
+          maxWidth: 420,
           borderRadius: 999,
           background: rgba(ui.text, ui.glass ? 0.12 : 0.06),
           backdropFilter: ui.glass ? "blur(10px)" : "none",
@@ -286,12 +302,15 @@ function TopBar({
               cursor: "pointer",
               fontFamily: ui.fontBody,
               fontWeight: 800,
-              fontSize: 14,
-              padding: "9px 16px",
+              fontSize: 13,
+              padding: "9px 6px",
               borderRadius: 999,
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
+              width: "100%",
+              minWidth: 0,
               color: tab === id ? ui.textOnAccent : ui.textSoft,
               background:
                 tab === id
@@ -678,7 +697,7 @@ function Dashboard({
           border: ui.stroke ? `${ui.stroke}px solid ${ui.strokeColor}` : "none",
         }}
       >
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "stretch" }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "stretch", minWidth: 0 }}>
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
             <span
               style={{
@@ -728,6 +747,7 @@ function Dashboard({
                 fontSize: 16,
                 color: "rgba(255,255,255,.92)",
                 maxWidth: 360,
+                textWrap: "balance",
               }}
             >
               Termine tes missions du matin et gagne des points.
@@ -792,7 +812,7 @@ function Dashboard({
                   ui={ui}
                   size="lg"
                   color="#ffffff"
-                  style={{ color: ui.primary }}
+                  style={{ color: ui.primary, width: "min(100%, 250px)", justifyContent: "center" }}
                   glow
                   onClick={() => {
                     playCue("task");
@@ -811,21 +831,22 @@ function Dashboard({
 
           <div
             style={{
-              flex: "0 0 240px",
+              flex: "1 1 220px",
               display: "grid",
               placeItems: "center",
               gap: 8,
               background: "rgba(255,255,255,.14)",
               borderRadius: ui.radius,
               padding: "18px 16px",
-              minWidth: 210,
+              minWidth: 0,
+              width: "100%",
             }}
           >
             <div
               style={{
                 position: "relative",
-                width: 150,
-                height: 150,
+                width: "min(150px, 58vw)",
+                height: "min(150px, 58vw)",
                 display: "grid",
                 placeItems: "center",
               }}
@@ -867,7 +888,15 @@ function Dashboard({
         </div>
 
         {/* sous-tuiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))",
+            gap: 14,
+            marginTop: 18,
+            minWidth: 0,
+          }}
+        >
           <div
             style={{
               background: "rgba(255,255,255,.16)",
@@ -876,9 +905,11 @@ function Dashboard({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              gap: 10,
+              minWidth: 0,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div
                 style={{
                   fontFamily: ui.fontBody,
@@ -887,7 +918,7 @@ function Dashboard({
                   letterSpacing: ".08em",
                   textTransform: "uppercase",
                   color: "rgba(255,255,255,.8)",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "normal",
                 }}
               >
                 Trophées
@@ -908,12 +939,13 @@ function Dashboard({
                   fontWeight: 700,
                   fontSize: 11,
                   color: "rgba(255,255,255,.75)",
+                  maxWidth: 125,
                 }}
               >
                 1 matin réussi = 1 trophée
               </div>
             </div>
-            <span style={{ fontSize: 30 }} aria-hidden="true">
+            <span style={{ fontSize: 30, flex: "0 0 auto" }} aria-hidden="true">
               🏆
             </span>
           </div>
@@ -925,9 +957,11 @@ function Dashboard({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              gap: 10,
+              minWidth: 0,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div
                 style={{
                   fontFamily: ui.fontBody,
@@ -936,7 +970,8 @@ function Dashboard({
                   letterSpacing: ".08em",
                   textTransform: "uppercase",
                   color: "rgba(255,255,255,.8)",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "normal",
+                  lineHeight: 1.1,
                 }}
               >
                 Coffre du jour
@@ -945,14 +980,19 @@ function Dashboard({
                 style={{
                   fontFamily: ui.fontTitle,
                   fontWeight: ui.titleWeight,
-                  fontSize: 22,
+                  fontSize: "clamp(18px,5vw,22px)",
                   color: "#fff",
+                  lineHeight: 1.1,
+                  overflowWrap: "anywhere",
                 }}
               >
                 {chestClaimedToday ? "Ouvert !" : chestReady ? "Prêt !" : "Verrouillé"}
               </div>
             </div>
-            <span style={{ fontSize: 30, display: "grid", placeItems: "center" }} aria-hidden="true">
+            <span
+              style={{ fontSize: 30, display: "grid", placeItems: "center", flex: "0 0 auto" }}
+              aria-hidden="true"
+            >
               {chestReady ? "🎉" : chestClaimedToday ? "✅" : <ChestIcon ui={ui} color={chestColors[dailyTier]} size={34} />}
             </span>
           </div>
@@ -1473,7 +1513,7 @@ function ChestScreen({
         padding: 0,
         overflow: "hidden",
         position: "relative",
-        height: "min(68vh,600px)",
+        height: "clamp(520px,78dvh,680px)",
         animation: "skadIn .45s ease both",
       }}
     >
@@ -1939,42 +1979,125 @@ export function KidQuest() {
 
   if (!user) {
     return (
-      <CenteredCard>
-        <PiLockFill
-          aria-hidden="true"
-          style={{ margin: "0 auto", width: 48, height: 48, color: "#ff5d8f" }}
-        />
-        <h1
+      <main
+        className="skad-landing-main"
+        style={{
+          display: "flex",
+          minHeight: "100dvh",
+          flexDirection: "column",
+          padding: "clamp(20px,5vw,32px) clamp(16px,4vw,24px) 16px",
+          background: ui.bg,
+          fontFamily: `${ui.fontBody}, system-ui, sans-serif`,
+        }}
+      >
+        <section
+          className="skad-landing-content"
           style={{
-            margin: "16px 0 0",
-            fontFamily: "var(--font-baloo)",
-            fontWeight: 800,
-            fontSize: 34,
-            lineHeight: 1,
+            width: "100%",
+            maxWidth: 680,
+            margin: "auto",
+            textAlign: "center",
           }}
         >
-          Bonjour !
-        </h1>
-        <p style={{ margin: "12px 0 0", fontWeight: 700, lineHeight: 1.7, color: "#9a8aa3" }}>
-          Demande à un parent de se connecter pour préparer tes missions.
-        </p>
-        <Link
-          href="/parent"
-          className="skad-focus"
+          <h1
+            className="skad-landing-title"
+            style={{
+              margin: 0,
+              fontFamily: "var(--font-baloo)",
+              fontSize: "clamp(56px,18vw,96px)",
+              fontWeight: 800,
+              lineHeight: 0.88,
+              color: ui.text,
+            }}
+          >
+            Skadoush
+          </h1>
+          <div
+            className="skad-landing-copy"
+            style={{
+              display: "grid",
+              maxWidth: 560,
+              margin: "clamp(20px,4vw,26px) auto 0",
+              gap: "clamp(10px,2vw,14px)",
+              color: "#6f6078",
+              fontSize: "clamp(15px,2.6vw,16px)",
+              fontWeight: 700,
+              lineHeight: 1.68,
+            }}
+          >
+            <p style={{ margin: 0 }}>J&apos;ai créé cette application pour mon fils.</p>
+            <p style={{ margin: 0 }}>
+              L&apos;idée était simple : l&apos;aider à se motiver dans ses petites
+              routines du quotidien, le matin, la semaine, ou quand il a besoin
+              d&apos;un petit coup de pouce, tout en valorisant ses efforts.
+            </p>
+            <p style={{ margin: 0 }}>
+              Ce n&apos;est pas une application parfaite, ni une méthode magique.
+              Juste un outil pensé avec amour, pour rendre les tâches un peu plus
+              ludiques et encourager les progrès, même les petits.
+            </p>
+            <p style={{ margin: 0 }}>
+              Elle est entièrement gratuite, alors n&apos;hésitez pas à vous en
+              servir... ou pas. 🙂
+            </p>
+            <p style={{ margin: "4px 0 0", color: ui.text, fontWeight: 800 }}>
+              — Gillian
+            </p>
+          </div>
+          <Link
+            href="/parent"
+            className="skad-focus skad-landing-cta"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 54,
+              maxWidth: "100%",
+              marginTop: "clamp(22px,5vw,30px)",
+              background: "linear-gradient(160deg,#ff9bbb,#ff4f86)",
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: 800,
+              lineHeight: 1.15,
+              padding: "14px 24px",
+              borderRadius: 18,
+              textAlign: "center",
+              boxShadow: "0 10px 20px -8px rgba(255,93,143,.8)",
+            }}
+          >
+            Créer un compte ou se connecter
+          </Link>
+        </section>
+
+        <footer
+          className="skad-landing-footer"
           style={{
-            display: "inline-block",
-            marginTop: 24,
-            background: "linear-gradient(160deg,#ff9bbb,#ff4f86)",
-            color: "#fff",
-            fontWeight: 800,
-            padding: "13px 26px",
-            borderRadius: 18,
-            boxShadow: "0 10px 20px -8px rgba(255,93,143,.8)",
+            display: "flex",
+            width: "100%",
+            maxWidth: 832,
+            margin: "clamp(16px,4vw,24px) auto 0",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+            gap: "8px 16px",
+            color: "#9a8aa3",
+            fontSize: 12,
+            fontWeight: 700,
+            textAlign: "center",
           }}
         >
-          Espace parent
-        </Link>
-      </CenteredCard>
+          <a href="mailto:gillian.levert.dev@gmail.com" style={{ flex: "1 1 220px" }}>
+            gillian.levert.dev@gmail.com
+          </a>
+          <a
+            href="https://www.gillianlevert.fr"
+            target="_blank"
+            rel="noreferrer"
+            style={{ flex: "1 1 180px" }}
+          >
+            www.gillianlevert.fr
+          </a>
+        </footer>
+      </main>
     );
   }
 
