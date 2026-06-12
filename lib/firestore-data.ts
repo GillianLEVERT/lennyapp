@@ -50,12 +50,17 @@ export type Child = {
   photoURL: string | null;
   soundId: string | null;
   customSound: string | null;
+  // Style Skadoush : thème visuel, personnage du blob et couleur du blob.
+  theme: ThemeId | null;
+  character: CharacterId | null;
+  blobColor: string | null;
 };
 
 // Helpers de gamification purs (sans Firebase), re-exportés ici pour que les
 // composants gardent un point d'import unique.
 import {
   CHEST_COSTS,
+  DAILY_CHEST_BONUS,
   pickChestReward,
   tierForStreak,
   tierFromPointsCost,
@@ -64,9 +69,11 @@ import {
   type ChestHistory,
   type RewardTier,
 } from "./gamification";
+import { isCharacterId, isThemeId, type CharacterId, type ThemeId } from "./themes";
 
 export {
   CHEST_COSTS,
+  DAILY_CHEST_BONUS,
   REWARD_TIERS,
   pickChestReward,
   tierForStreak,
@@ -138,6 +145,9 @@ export function subscribeChildren(
           soundId: typeof data.soundId === "string" ? data.soundId : null,
           customSound:
             typeof data.customSound === "string" ? data.customSound : null,
+          theme: isThemeId(data.theme) ? data.theme : null,
+          character: isCharacterId(data.character) ? data.character : null,
+          blobColor: typeof data.blobColor === "string" ? data.blobColor : null,
         };
       })
     );
@@ -217,7 +227,17 @@ export function updateChild(
   parentId: string,
   childId: string,
   data: Partial<
-    Pick<Child, "name" | "avatar" | "photoURL" | "soundId" | "customSound">
+    Pick<
+      Child,
+      | "name"
+      | "avatar"
+      | "photoURL"
+      | "soundId"
+      | "customSound"
+      | "theme"
+      | "character"
+      | "blobColor"
+    >
   >
 ) {
   return updateDoc(doc(db, "users", parentId, "children", childId), data);
@@ -323,12 +343,13 @@ export async function setMissionStatus(
   });
 }
 
-// Ouvre le coffre du jour : incrémente la série une seule fois par jour.
-// Renvoie la nouvelle série + le palier gagné, ou null si déjà ouvert aujourd'hui.
+// Ouvre le coffre du jour : incrémente la série une seule fois par jour
+// et crédite les points bonus du palier (ce qui alimente les coffres
+// récompenses). Renvoie série + palier + bonus, ou null si déjà ouvert.
 export async function claimDailyChest(
   parentId: string,
   childId: string
-): Promise<{ streak: number; tier: RewardTier } | null> {
+): Promise<{ streak: number; tier: RewardTier; bonus: number } | null> {
   const childDoc = doc(db, "users", parentId, "children", childId);
 
   return runTransaction(db, async (transaction) => {
@@ -350,10 +371,17 @@ export async function claimDailyChest(
     const previousStreak = typeof data.streak === "number" ? data.streak : 0;
     // Série continue si le dernier coffre datait d'hier, sinon on repart à 1.
     const newStreak = last === yesterdayKey() ? previousStreak + 1 : 1;
+    const tier = tierForStreak(newStreak);
+    const bonus = DAILY_CHEST_BONUS[tier];
+    const points = typeof data.totalPoints === "number" ? data.totalPoints : 0;
 
-    transaction.update(childDoc, { streak: newStreak, lastStreakDay: today });
+    transaction.update(childDoc, {
+      streak: newStreak,
+      lastStreakDay: today,
+      totalPoints: points + bonus,
+    });
 
-    return { streak: newStreak, tier: tierForStreak(newStreak) };
+    return { streak: newStreak, tier, bonus };
   });
 }
 

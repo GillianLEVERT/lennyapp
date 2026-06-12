@@ -2,7 +2,7 @@
 // offline) + vibration haptique, le tout derrière un unique réglage "son & vibrations"
 // persistant dans localStorage et partageable via useSyncExternalStore.
 
-export type FeedbackCue = "task" | "unlock" | "reward";
+export type FeedbackCue = "task" | "unlock" | "reward" | "open";
 
 const SOUND_PREF_KEY = "mission-heros-sound-v1";
 const SOUND_EVENT_NAME = "mission-heros-sound-updated";
@@ -117,6 +117,11 @@ const CUE_NOTES: Record<FeedbackCue, Note[]> = {
     { freq: 783.99, start: 0.2, duration: 0.16 },
     { freq: 1046.5, start: 0.3, duration: 0.32, peak: 0.16 },
   ],
+  // Grincement doux d'ouverture de coffre (scène 3D), puis lueur montante.
+  open: [
+    { freq: 300, start: 0, duration: 0.18, type: "sawtooth", peak: 0.06 },
+    { freq: 700, start: 0.16, duration: 0.25, peak: 0.09 },
+  ],
   // Fanfare de coffre : arpège + accord brillant final.
   reward: [
     { freq: 523.25, start: 0, duration: 0.14 },
@@ -131,6 +136,7 @@ const CUE_NOTES: Record<FeedbackCue, Note[]> = {
 const VIBRATION_PATTERNS: Record<FeedbackCue, number | number[]> = {
   task: 15,
   unlock: [0, 35, 40, 35],
+  open: [0, 25, 60, 40],
   reward: [0, 30, 30, 30, 30, 90],
 };
 

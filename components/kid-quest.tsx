@@ -1,19 +1,38 @@
 "use client";
 
+// Vue enfant Skadoush — adaptation du prototype Claude Design :
+// 3 thèmes (Jelly / Arcade / Cosmic), mascotte blob personnalisable
+// (personnage + couleur), onglets Accueil / Missions / Coffre et
+// scène 3D d'ouverture du coffre du jour. Toute la logique Firestore
+// (missions, points, série, coffres) est conservée.
+
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   PiGearSixFill,
   PiLockFill,
   PiSpeakerHighFill,
   PiSpeakerSlashFill,
-  PiStarFill,
-  PiTreasureChestFill,
 } from "react-icons/pi";
 import { ConfettiBurst } from "@/components/confetti-burst";
 import { useAuth } from "@/components/auth-provider";
+import { ChildAvatar } from "@/components/child-avatar";
+import { BlobMascot, ChestIcon } from "@/components/blob-mascot";
+import {
+  Btn,
+  Card,
+  Counter,
+  IconTile,
+  Pill,
+  ProgressBar,
+  SectionTitle,
+  STACK_GAP,
+  TextureOverlay,
+} from "@/components/skad-ui";
 import {
   CHEST_COSTS,
+  DAILY_CHEST_BONUS,
   claimDailyChest,
   openChest,
   resetDailyMissions,
@@ -24,6 +43,7 @@ import {
   subscribeRewards,
   tierForStreak,
   todayKey,
+  updateChild,
   yesterdayKey,
   type Child,
   type Mission,
@@ -38,135 +58,1678 @@ import {
   subscribeToSound,
   toggleSound,
 } from "@/lib/feedback";
-import { ChildAvatar } from "@/components/child-avatar";
+import {
+  CHARACTER_ORDER,
+  CHARACTERS,
+  CHEST_TIER_COLORS,
+  mix,
+  resolveKidTheme,
+  rgba,
+  THEME_ORDER,
+  THEMES,
+  type CharacterId,
+  type KidTheme,
+  type ThemeId,
+} from "@/lib/themes";
+
+// Three.js n'est chargé que lorsque la vue enfant s'affiche.
+const ChestScene = nextDynamic(
+  () => import("@/components/chest-scene").then((mod) => mod.ChestScene),
+  { ssr: false }
+);
 
 const ACTIVE_CHILD_KEY = "lennyapp-kid-child";
 
-// Habillage visuel des cartes mission (jusqu'à 6), repris de l'ADN couleur.
-const MISSION_THEMES = [
-  { gradient: "linear-gradient(145deg, #fff5f7 0%, #ffe0e7 100%)", accent: "#FF4D63", button: "#FF4D63", buttonText: "#FFFFFF" },
-  { gradient: "linear-gradient(145deg, #fffdf4 0%, #ffeaa1 100%)", accent: "#D89A00", button: "#FFD447", buttonText: "#15254B" },
-  { gradient: "linear-gradient(145deg, #f4f8ff 0%, #cfe1ff 100%)", accent: "#2E5BFF", button: "#2E5BFF", buttonText: "#FFFFFF" },
-  { gradient: "linear-gradient(145deg, #fff7ef 0%, #ffd2a6 100%)", accent: "#F06C00", button: "#F06C00", buttonText: "#FFFFFF" },
-  { gradient: "linear-gradient(145deg, #f3fdf6 0%, #c8f4d8 100%)", accent: "#2CCB73", button: "#2CCB73", buttonText: "#FFFFFF" },
-  { gradient: "linear-gradient(145deg, #faf5ff 0%, #e7d6ff 100%)", accent: "#7C4DFF", button: "#7C4DFF", buttonText: "#FFFFFF" },
-] as const;
+type Tab = "home" | "missions" | "chest";
 
-function TrophyMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className={className}>
-      <path
-        d="M22 10h20v9c0 10-4 17-10 22-6-5-10-12-10-22v-9Z"
-        fill="currentColor"
-      />
-      <path
-        d="M18 14H10v4c0 7 4 11 11 13M46 14h8v4c0 7-4 11-11 13"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M26 42h12v5a6 6 0 0 0 6 6H20a6 6 0 0 0 6-6v-5Z"
-        fill="currentColor"
-      />
-      <rect x="18" y="53" width="28" height="6" rx="3" fill="currentColor" />
-    </svg>
+function subscribeReducedMotion(onChange: () => void): () => void {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false
   );
 }
 
-function ChestGlyph({ tier, className }: { tier: RewardTier; className?: string }) {
-  return (
-    <PiTreasureChestFill
-      aria-hidden="true"
-      className={`chest-glyph chest-glyph--${tier} ${className ?? ""}`.trim()}
-    />
-  );
-}
-
-function RewardPrize({ tier }: { tier: RewardTier }) {
-  if (tier === "bronze") {
-    return (
-      <div className="prize-art prize-art--badge" aria-hidden="true">
-        <span className="badge-star" />
-        <span className="badge-ribbon badge-ribbon--left" />
-        <span className="badge-ribbon badge-ribbon--right" />
-      </div>
-    );
-  }
-
-  if (tier === "silver") {
-    return (
-      <div className="prize-art prize-art--gamepad" aria-hidden="true">
-        <span className="gamepad-pad" />
-        <span className="gamepad-button gamepad-button--one" />
-        <span className="gamepad-button gamepad-button--two" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="prize-art prize-art--gift" aria-hidden="true">
-      <span className="gift-ribbon gift-ribbon--vertical" />
-      <span className="gift-ribbon gift-ribbon--horizontal" />
-      <span className="gift-bow gift-bow--left" />
-      <span className="gift-bow gift-bow--right" />
-    </div>
-  );
-}
-
-function RewardChest({
-  tier,
-  revealed,
-  onOpened,
-}: {
-  tier: RewardTier;
-  revealed: boolean;
-  onOpened: () => void;
-}) {
-  return (
-    <div
-      className={`chest-scene chest-scene--${tier} ${revealed ? "chest-scene--revealed" : ""}`}
-      aria-hidden="true"
-    >
-      <div className="chest-rays" />
-      <span className="chest-spark chest-spark--one" />
-      <span className="chest-spark chest-spark--two" />
-      <span className="chest-spark chest-spark--three" />
-      <div className="mobile-chest">
-        <div className="chest-emblem">
-          <ChestGlyph tier={tier} className="chest-emblem-icon" />
-        </div>
-        <div className="chest-lid" onAnimationEnd={onOpened} />
-        <div className="chest-body" />
-        <div className="chest-lock" />
-      </div>
-      <div className={`prize-pop ${revealed ? "prize-pop--visible" : ""}`}>
-        <RewardPrize tier={tier} />
-      </div>
-    </div>
-  );
-}
-
-const CHEST_CELEBRATION: Record<RewardTier, string> = {
-  bronze: "Coffre ouvert !",
-  silver: "Bonus gagné !",
-  gold: "Grand coffre gagné !",
-};
-
+/* ---------------- écrans d'attente (thème Jelly par défaut) ---------------- */
 function CenteredCard({ children }: { children: React.ReactNode }) {
+  const ui = resolveKidTheme(null, null, null);
   return (
-    <main className="page-stage flex min-h-screen items-center justify-center px-4 py-8">
-      <section className="panel-card mx-auto w-full max-w-md p-7 text-center">
+    <main
+      style={{
+        minHeight: "100vh",
+        background: ui.bg,
+        display: "grid",
+        placeItems: "center",
+        padding: "32px 16px",
+        fontFamily: `${ui.fontBody}, system-ui, sans-serif`,
+      }}
+    >
+      <Card ui={ui} style={{ width: "100%", maxWidth: 420, textAlign: "center", padding: 28 }}>
         {children}
-      </section>
+      </Card>
     </main>
   );
 }
 
+/* ---------------- en-tête persistant ---------------- */
+function TopBar({
+  ui,
+  child,
+  tab,
+  setTab,
+  soundEnabled,
+}: {
+  ui: KidTheme;
+  child: Child;
+  tab: Tab;
+  setTab: (tab: Tab) => void;
+  soundEnabled: boolean;
+}) {
+  const tabs: Array<[Tab, string, string]> = [
+    ["home", "Accueil", "🏠"],
+    ["missions", "Missions", "🎯"],
+    ["chest", "Coffre", "🎁"],
+  ];
+  return (
+    <div style={{ display: "grid", gap: 12, padding: "4px 2px 0" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 52, height: 52 }}>
+            <BlobMascot ui={ui} size={52} waveKey={ui.character} />
+          </div>
+          <div style={{ lineHeight: 1.1 }}>
+            <div
+              style={{
+                fontFamily: ui.fontBody,
+                fontWeight: 800,
+                fontSize: 11,
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+                color: ui.textSoft,
+              }}
+            >
+              Salut
+            </div>
+            <div
+              style={{
+                fontFamily: ui.fontTitle,
+                fontWeight: ui.titleWeight,
+                fontSize: 20,
+                color: ui.text,
+              }}
+            >
+              {child.name}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "7px 14px 7px 10px",
+              borderRadius: 999,
+              background: rgba(ui.accents[3], ui.glass ? 0.22 : 0.16),
+            }}
+          >
+            <span style={{ fontSize: 18 }} aria-hidden="true">
+              ⭐
+            </span>
+            <Counter
+              value={child.totalPoints}
+              style={{
+                fontFamily: ui.fontTitle,
+                fontWeight: ui.titleWeight,
+                fontSize: 20,
+                color: ui.text,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            />
+            <span
+              style={{
+                fontFamily: ui.fontBody,
+                fontWeight: 700,
+                fontSize: 12,
+                color: ui.textSoft,
+              }}
+            >
+              pts
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => toggleSound()}
+            aria-pressed={soundEnabled}
+            aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
+            className="skad-focus"
+            style={{
+              appearance: "none",
+              border: "none",
+              cursor: "pointer",
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 18,
+              color: soundEnabled ? ui.text : ui.textSoft,
+              background: rgba(ui.text, ui.glass ? 0.14 : 0.07),
+            }}
+          >
+            {soundEnabled ? (
+              <PiSpeakerHighFill aria-hidden="true" />
+            ) : (
+              <PiSpeakerSlashFill aria-hidden="true" />
+            )}
+          </button>
+          <Link
+            href="/parent"
+            aria-label="Espace parent"
+            className="skad-focus"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 18,
+              color: ui.textSoft,
+              background: rgba(ui.text, ui.glass ? 0.14 : 0.07),
+            }}
+          >
+            <PiGearSixFill aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          justifySelf: "center",
+          borderRadius: 999,
+          background: rgba(ui.text, ui.glass ? 0.12 : 0.06),
+          backdropFilter: ui.glass ? "blur(10px)" : "none",
+        }}
+      >
+        {tabs.map(([id, label, emoji]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              playCue("task");
+              setTab(id);
+            }}
+            aria-pressed={tab === id}
+            className="skad-focus"
+            style={{
+              appearance: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: ui.fontBody,
+              fontWeight: 800,
+              fontSize: 14,
+              padding: "9px 16px",
+              borderRadius: 999,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              color: tab === id ? ui.textOnAccent : ui.textSoft,
+              background:
+                tab === id
+                  ? `linear-gradient(160deg,${mix(ui.primary, "#fff", 0.2)},${ui.primary})`
+                  : "transparent",
+              boxShadow: tab === id ? `0 6px 14px -6px ${rgba(ui.primary, 0.7)}` : "none",
+              transition: "all .2s",
+            }}
+          >
+            <span aria-hidden="true">{emoji}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- personnalisation (thème / héros / couleur) ---------------- */
+function ThemeSwitcher({
+  current,
+  onPick,
+}: {
+  current: ThemeId;
+  onPick: (id: ThemeId) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      {THEME_ORDER.map((id) => {
+        const theme = THEMES[id];
+        const on = id === current;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPick(id)}
+            aria-pressed={on}
+            title={theme.tagline}
+            className="skad-focus"
+            style={{
+              appearance: "none",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+              padding: "7px 9px",
+              borderRadius: 14,
+              minWidth: 60,
+              background: on
+                ? "rgba(255,255,255,.92)"
+                : "rgba(255,255,255,.18)",
+              color: on ? theme.primary : "#fff",
+              fontFamily: "var(--font-nunito)",
+              fontWeight: 800,
+              fontSize: 11,
+              boxShadow: on ? "0 6px 14px -6px rgba(0,0,0,.45)" : "none",
+              transform: on ? "translateY(-1px)" : "none",
+              transition: "all .2s",
+            }}
+          >
+            <span style={{ fontSize: 18 }} aria-hidden="true">
+              {theme.emoji}
+            </span>
+            {theme.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CharacterPicker({
+  ui,
+  character,
+  onPick,
+}: {
+  ui: KidTheme;
+  character: CharacterId;
+  onPick: (id: CharacterId) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      {CHARACTER_ORDER.map((id) => {
+        const c = CHARACTERS[id];
+        const on = id === character;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPick(id)}
+            aria-pressed={on}
+            title={c.name}
+            className="skad-focus"
+            style={{
+              appearance: "none",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+              padding: "7px 9px",
+              borderRadius: 14,
+              minWidth: 60,
+              background: on ? "rgba(255,255,255,.92)" : "rgba(255,255,255,.18)",
+              color: on ? ui.primary : "#fff",
+              fontFamily: ui.fontBody,
+              fontWeight: 800,
+              fontSize: 11,
+              boxShadow: on ? "0 6px 14px -6px rgba(0,0,0,.45)" : "none",
+              transform: on ? "translateY(-1px)" : "none",
+              transition: "all .2s",
+            }}
+          >
+            <span style={{ fontSize: 18 }} aria-hidden="true">
+              {c.emoji}
+            </span>
+            {c.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BlobColorPicker({
+  themeId,
+  blobColor,
+  onPick,
+}: {
+  themeId: ThemeId;
+  blobColor: string | null;
+  onPick: (color: string | null) => void;
+}) {
+  const base = THEMES[themeId];
+  // null = couleur d'origine du thème, puis les 4 accents du thème.
+  const options: Array<{ key: string; color: string; value: string | null }> = [
+    { key: "default", color: base.scene.blob, value: null },
+    ...base.accents.map((accent) => ({ key: accent, color: accent, value: accent })),
+  ];
+  const current = blobColor ?? null;
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }} role="group" aria-label="Couleur du blob">
+      {options.map((option) => {
+        const on = current === option.value;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onPick(option.value)}
+            aria-pressed={on}
+            aria-label={option.value === null ? "Couleur d'origine" : `Couleur ${option.color}`}
+            className="skad-focus"
+            style={{
+              appearance: "none",
+              cursor: "pointer",
+              width: on ? 28 : 22,
+              height: on ? 28 : 22,
+              borderRadius: "50%",
+              border: on ? "3px solid rgba(255,255,255,.95)" : "2px solid rgba(255,255,255,.4)",
+              background: `radial-gradient(circle at 35% 30%, ${mix(option.color, "#ffffff", 0.4)}, ${option.color})`,
+              boxShadow: on ? `0 4px 10px -2px ${rgba(option.color, 0.8)}` : "none",
+              transition: "all .2s",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------- carte mission ----------------
+   Icône en grand et centrée : beaucoup d'enfants ne lisent pas encore,
+   c'est l'image qui sert de repère. Hauteur 100% pour des rangées
+   alignées (pas d'effet escalier). */
+function MissionCard({
+  ui,
+  mission,
+  color,
+  onToggle,
+}: {
+  ui: KidTheme;
+  mission: Mission;
+  color: string;
+  onToggle: (mission: Mission) => void;
+}) {
+  const done = mission.status === "done";
+  const c = color;
+  return (
+    <button
+      type="button"
+      aria-pressed={done}
+      onClick={() => onToggle(mission)}
+      className="skad-focus"
+      style={{
+        appearance: "none",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        height: "100%",
+        background: done ? rgba(c, ui.glass ? 0.2 : 0.1) : ui.surface,
+        backdropFilter: ui.glass ? "blur(18px) saturate(160%)" : "none",
+        borderRadius: ui.radius,
+        padding: 20,
+        boxShadow: ui.shadowSoft,
+        border: ui.glass
+          ? `1px solid ${rgba(ui.text, 0.14)}`
+          : ui.stroke
+            ? `${ui.stroke}px solid ${ui.strokeColor}`
+            : `1px solid ${rgba(ui.text, 0.05)}`,
+        color: ui.text,
+        position: "relative",
+        overflow: "hidden",
+        transition: "transform .18s cubic-bezier(.34,1.56,.64,1), background .3s",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background: `linear-gradient(150deg, ${rgba(c, 0.14)}, transparent 60%)`,
+        }}
+      />
+      {done ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: c,
+            display: "grid",
+            placeItems: "center",
+            color: ui.textOnAccent,
+            fontWeight: 900,
+            animation: "skadPop .4s cubic-bezier(.34,1.8,.5,1)",
+          }}
+          aria-hidden="true"
+        >
+          ✓
+        </div>
+      ) : null}
+
+      <div style={{ position: "relative", marginTop: 4 }}>
+        <IconTile ui={ui} glyph={mission.icon} color={c} size={84} />
+      </div>
+      <Pill ui={ui} color={c} style={{ marginTop: 12 }}>
+        {done ? "Fait" : `+${mission.points} pts`}
+      </Pill>
+      <div
+        style={{
+          position: "relative",
+          marginTop: 8,
+          fontFamily: ui.fontBody,
+          fontWeight: 800,
+          fontSize: 19,
+          lineHeight: 1.25,
+          color: ui.text,
+          textAlign: "center",
+          textWrap: "balance",
+          textDecoration: done ? "line-through" : "none",
+          textDecorationColor: rgba(ui.text, 0.35),
+        }}
+      >
+        {mission.title}
+      </div>
+      {mission.description ? (
+        <div
+          style={{
+            position: "relative",
+            marginTop: 4,
+            fontFamily: ui.fontBody,
+            fontWeight: 600,
+            fontSize: 13,
+            color: ui.textSoft,
+            textAlign: "center",
+            textWrap: "balance",
+          }}
+        >
+          {mission.description}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          position: "relative",
+          marginTop: "auto",
+          paddingTop: 16,
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            placeItems: "center",
+            fontFamily: ui.fontBody,
+            fontWeight: 800,
+            fontSize: 16,
+            padding: "13px 22px",
+            borderRadius: ui.radius * 0.7,
+            background: done
+              ? rgba(c, ui.glass ? 0.25 : 0.16)
+              : `linear-gradient(160deg, ${mix(c, "#ffffff", 0.22)}, ${c})`,
+            color: done ? c : ui.textOnAccent,
+            boxShadow: done
+              ? "none"
+              : ui.glossy
+                ? `inset 0 2px 3px rgba(255,255,255,.55), 0 10px 20px -8px ${rgba(c, 0.8)}`
+                : ui.stroke
+                  ? `4px 4px 0 ${ui.strokeColor}`
+                  : `0 12px 22px -8px ${rgba(c, 0.7)}`,
+            border: !done && ui.stroke ? `${ui.stroke}px solid ${ui.strokeColor}` : "none",
+          }}
+        >
+          {done ? "Bravo ! ✨" : "C'est fait !"}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/* ---------------- ACCUEIL ---------------- */
+function Dashboard({
+  ui,
+  child,
+  kids,
+  missions,
+  doneCount,
+  chestReady,
+  chestClaimedToday,
+  dailyTier,
+  rewards,
+  goMissions,
+  goChest,
+  onOpenRewardChest,
+  onSelectChild,
+  onPickTheme,
+  onPickCharacter,
+  onPickBlobColor,
+}: {
+  ui: KidTheme;
+  child: Child;
+  kids: Child[];
+  missions: Mission[];
+  doneCount: number;
+  chestReady: boolean;
+  chestClaimedToday: boolean;
+  dailyTier: RewardTier;
+  rewards: Reward[];
+  goMissions: () => void;
+  goChest: () => void;
+  onOpenRewardChest: (tier: RewardTier) => void;
+  onSelectChild: (childId: string) => void;
+  onPickTheme: (id: ThemeId) => void;
+  onPickCharacter: (id: CharacterId) => void;
+  onPickBlobColor: (color: string | null) => void;
+}) {
+  const allDone = missions.length > 0 && doneCount === missions.length;
+  const streak = child.streak;
+  // Couleurs des 3 coffres récompenses, reprises des accents du thème.
+  const chestColors: Record<RewardTier, string> = {
+    bronze: ui.accents[0],
+    silver: ui.accents[1],
+    gold: ui.accents[3],
+  };
+
+  return (
+    <div style={{ display: "grid", gap: STACK_GAP, animation: "skadIn .45s ease both" }}>
+      {/* HERO */}
+      <Card
+        ui={ui}
+        style={{
+          background: `linear-gradient(150deg, ${ui.heroGrad[0]}, ${ui.heroGrad[1]})`,
+          color: "#fff",
+          padding: 28,
+          overflow: "hidden",
+          border: ui.stroke ? `${ui.stroke}px solid ${ui.strokeColor}` : "none",
+        }}
+      >
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "stretch" }}>
+          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                gap: 8,
+                alignItems: "center",
+                fontFamily: ui.fontBody,
+                fontWeight: 800,
+                fontSize: 11,
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                background: "rgba(255,255,255,.22)",
+                color: "#fff",
+                padding: "6px 12px",
+                borderRadius: 999,
+              }}
+            >
+              <ChildAvatar
+                avatar={child.avatar}
+                photoURL={child.photoURL}
+                name={child.name}
+                size={22}
+              />
+              Ta journée de héros
+            </span>
+            <h1
+              style={{
+                margin: "14px 0 0",
+                fontFamily: ui.fontTitle,
+                fontWeight: ui.titleWeight,
+                textTransform: ui.titleUpper ? "uppercase" : "none",
+                fontSize: "clamp(40px,7vw,72px)",
+                lineHeight: 0.92,
+                color: "#fff",
+                textShadow: "0 4px 16px rgba(0,0,0,.18)",
+                letterSpacing: ui.titleUpper ? "0" : "-.02em",
+              }}
+            >
+              Skadoush
+            </h1>
+            <p
+              style={{
+                margin: "12px 0 18px",
+                fontFamily: ui.fontBody,
+                fontWeight: 600,
+                fontSize: 16,
+                color: "rgba(255,255,255,.92)",
+                maxWidth: 360,
+              }}
+            >
+              Termine tes missions du matin et gagne des points.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontFamily: ui.fontBody,
+                fontWeight: 800,
+                fontSize: 12,
+                letterSpacing: ".06em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,.85)",
+                marginBottom: 8,
+              }}
+            >
+              <span>Missions</span>
+              <span>
+                {doneCount}/{missions.length}
+              </span>
+            </div>
+            <div
+              style={{
+                background: "rgba(255,255,255,.28)",
+                borderRadius: 999,
+                height: 12,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${missions.length ? (doneCount / missions.length) * 100 : 0}%`,
+                  background: "#fff",
+                  borderRadius: 999,
+                  transition: "width .6s cubic-bezier(.34,1.56,.64,1)",
+                  boxShadow: "0 0 12px rgba(255,255,255,.7)",
+                }}
+              />
+            </div>
+            <div style={{ marginTop: 20 }}>
+              {allDone && !chestReady ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: ui.fontBody,
+                    fontWeight: 800,
+                    fontSize: 16,
+                    background: "rgba(255,255,255,.22)",
+                    color: "#fff",
+                    padding: "13px 22px",
+                    borderRadius: ui.radius * 0.7,
+                  }}
+                >
+                  ✅ Coffre ouvert ! Reviens demain ✨
+                </span>
+              ) : (
+                <Btn
+                  ui={ui}
+                  size="lg"
+                  color="#ffffff"
+                  style={{ color: ui.primary }}
+                  glow
+                  onClick={() => {
+                    playCue("task");
+                    if (chestReady) {
+                      goChest();
+                    } else {
+                      goMissions();
+                    }
+                  }}
+                >
+                  {chestReady ? "🎁 Ouvrir le coffre !" : "Faire mes missions →"}
+                </Btn>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: "0 0 240px",
+              display: "grid",
+              placeItems: "center",
+              gap: 8,
+              background: "rgba(255,255,255,.14)",
+              borderRadius: ui.radius,
+              padding: "18px 16px",
+              minWidth: 210,
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                width: 150,
+                height: 150,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <BlobMascot ui={ui} size={150} waveKey={`${ui.character}-${ui.scene.blob}`} />
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontSize: 22 }} aria-hidden="true">
+                ⭐
+              </span>
+              <Counter
+                value={child.totalPoints}
+                style={{
+                  fontFamily: ui.fontTitle,
+                  fontWeight: ui.titleWeight,
+                  fontSize: 40,
+                  color: "#fff",
+                  lineHeight: 1,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: ui.fontBody,
+                  fontWeight: 800,
+                  fontSize: 13,
+                  color: "rgba(255,255,255,.85)",
+                }}
+              >
+                pts
+              </span>
+            </div>
+            <CharacterPicker ui={ui} character={ui.character} onPick={onPickCharacter} />
+            <BlobColorPicker
+              themeId={ui.id}
+              blobColor={child.blobColor}
+              onPick={onPickBlobColor}
+            />
+          </div>
+        </div>
+
+        {/* sous-tuiles */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,.16)",
+              borderRadius: ui.radius * 0.8,
+              padding: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: ui.fontBody,
+                  fontWeight: 800,
+                  fontSize: 11,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,.8)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Trophées
+              </div>
+              <div
+                style={{
+                  fontFamily: ui.fontTitle,
+                  fontWeight: ui.titleWeight,
+                  fontSize: 28,
+                  color: "#fff",
+                }}
+              >
+                {streak}
+              </div>
+              <div
+                style={{
+                  fontFamily: ui.fontBody,
+                  fontWeight: 700,
+                  fontSize: 11,
+                  color: "rgba(255,255,255,.75)",
+                }}
+              >
+                1 matin réussi = 1 trophée
+              </div>
+            </div>
+            <span style={{ fontSize: 30 }} aria-hidden="true">
+              🏆
+            </span>
+          </div>
+          <div
+            style={{
+              background: "rgba(255,255,255,.16)",
+              borderRadius: ui.radius * 0.8,
+              padding: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: ui.fontBody,
+                  fontWeight: 800,
+                  fontSize: 11,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,.8)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Coffre du jour
+              </div>
+              <div
+                style={{
+                  fontFamily: ui.fontTitle,
+                  fontWeight: ui.titleWeight,
+                  fontSize: 22,
+                  color: "#fff",
+                }}
+              >
+                {chestClaimedToday ? "Ouvert !" : chestReady ? "Prêt !" : "Verrouillé"}
+              </div>
+            </div>
+            <span style={{ fontSize: 30, display: "grid", placeItems: "center" }} aria-hidden="true">
+              {chestReady ? "🎉" : chestClaimedToday ? "✅" : <ChestIcon ui={ui} color={chestColors[dailyTier]} size={34} />}
+            </span>
+          </div>
+        </div>
+
+        {/* mon style : choix du thème */}
+        <div
+          style={{
+            marginTop: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            background: "rgba(255,255,255,.14)",
+            borderRadius: ui.radius * 0.8,
+            padding: "12px 16px",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: ui.fontBody,
+              fontWeight: 800,
+              fontSize: 11,
+              letterSpacing: ".08em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,.85)",
+            }}
+          >
+            ✨ Mon style
+          </span>
+          <ThemeSwitcher current={ui.id} onPick={onPickTheme} />
+        </div>
+
+        {/* sélecteur d'enfant */}
+        {kids.length > 1 ? (
+          <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {kids.map((kid) => {
+              const active = kid.id === child.id;
+              return (
+                <button
+                  key={kid.id}
+                  type="button"
+                  onClick={() => onSelectChild(kid.id)}
+                  aria-pressed={active}
+                  className="skad-focus"
+                  style={{
+                    appearance: "none",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    borderRadius: 999,
+                    padding: "6px 14px 6px 8px",
+                    fontFamily: ui.fontBody,
+                    fontWeight: 800,
+                    fontSize: 13,
+                    border: active ? "2px solid #fff" : "2px solid rgba(255,255,255,.3)",
+                    background: active ? "rgba(255,255,255,.2)" : "transparent",
+                    color: active ? "#fff" : "rgba(255,255,255,.7)",
+                    transition: "all .2s",
+                  }}
+                >
+                  <ChildAvatar avatar={kid.avatar} photoURL={kid.photoURL} name={kid.name} size={24} />
+                  {kid.name}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* TES CARTES (aperçu missions) */}
+      <Card ui={ui}>
+        <SectionTitle
+          ui={ui}
+          kicker="Missions"
+          title="Tes cartes"
+          color={ui.accents[1]}
+          right={
+            <Pill ui={ui} color={ui.accents[1]}>
+              {doneCount}/{missions.length}
+            </Pill>
+          }
+        />
+        {missions.length === 0 ? (
+          <p
+            style={{
+              margin: 0,
+              borderRadius: ui.radius * 0.7,
+              background: rgba(ui.text, ui.glass ? 0.1 : 0.05),
+              padding: 20,
+              textAlign: "center",
+              fontFamily: ui.fontBody,
+              fontWeight: 700,
+              color: ui.textSoft,
+            }}
+          >
+            Aucune mission pour le moment. Un parent peut les préparer dans l&apos;espace parent.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+              gap: 14,
+            }}
+          >
+            {missions.map((mission, index) => {
+              const c = ui.accents[index % ui.accents.length];
+              const done = mission.status === "done";
+              return (
+                <Card
+                  key={mission.id}
+                  ui={ui}
+                  interactive
+                  accent={c}
+                  onClick={() => {
+                    playCue("task");
+                    goMissions();
+                  }}
+                  style={{
+                    background: rgba(c, ui.glass ? 0.16 : 0.08),
+                    padding: 16,
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 10,
+                    textAlign: "center",
+                  }}
+                >
+                  <IconTile ui={ui} glyph={mission.icon} color={c} size={64} />
+                  <div
+                    style={{
+                      fontFamily: ui.fontBody,
+                      fontWeight: 800,
+                      fontSize: 16,
+                      lineHeight: 1.25,
+                      color: ui.text,
+                      textWrap: "balance",
+                    }}
+                  >
+                    {mission.title}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: "auto",
+                      fontFamily: ui.fontBody,
+                      fontWeight: 800,
+                      fontSize: 12,
+                      color: done ? c : ui.textSoft,
+                    }}
+                  >
+                    {done ? "✓ Terminé" : `+${mission.points} pts`}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* COFFRES À OUVRIR (récompenses contre points) */}
+      <Card ui={ui}>
+        <SectionTitle
+          ui={ui}
+          kicker="Récompenses"
+          title="Coffres à ouvrir"
+          color={ui.accents[2]}
+          right={
+            <Pill ui={ui} color={ui.accents[2]}>
+              {child.totalPoints} pts
+            </Pill>
+          }
+        />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+            gap: 14,
+          }}
+        >
+          {REWARD_TIERS.map((chest) => {
+            const c = chestColors[chest.tier];
+            const cost = CHEST_COSTS[chest.tier];
+            const pool = rewards.filter((reward) => reward.tier === chest.tier);
+            const affordable = child.totalPoints >= cost;
+            const openable = affordable && pool.length > 0;
+            return (
+              <Card
+                key={chest.tier}
+                ui={ui}
+                accent={c}
+                interactive={openable}
+                onClick={openable ? () => onOpenRewardChest(chest.tier) : undefined}
+                style={{ background: rgba(c, ui.glass ? 0.14 : 0.07), padding: 18 }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <IconTile ui={ui} node={<ChestIcon ui={ui} color={c} size={30} />} color={c} size={48} />
+                  <Pill ui={ui} color={c}>
+                    {cost} pts
+                  </Pill>
+                </div>
+                <div
+                  style={{
+                    fontFamily: ui.fontTitle,
+                    fontWeight: ui.titleWeight,
+                    textTransform: ui.titleUpper ? "uppercase" : "none",
+                    fontSize: 20,
+                    color: ui.text,
+                    margin: "14px 0 4px",
+                  }}
+                >
+                  {chest.chestName}
+                </div>
+                <div
+                  style={{
+                    fontFamily: ui.fontBody,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: ui.textSoft,
+                    marginBottom: 12,
+                  }}
+                >
+                  {pool.length === 0
+                    ? "Coffre vide pour l'instant"
+                    : openable
+                      ? "Prêt à ouvrir ! Touche-moi"
+                      : `${pool.length} surprise${pool.length > 1 ? "s" : ""} dedans`}
+                </div>
+                <ProgressBar ui={ui} value={Math.min(child.totalPoints, cost)} max={cost} color={c} height={10} />
+                <div
+                  style={{
+                    fontFamily: ui.fontBody,
+                    fontWeight: 800,
+                    fontSize: 11,
+                    color: ui.textSoft,
+                    textAlign: "right",
+                    marginTop: 6,
+                  }}
+                >
+                  {Math.min(child.totalPoints, cost)}/{cost}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- MISSIONS ---------------- */
+function MissionsScreen({
+  ui,
+  childName,
+  missions,
+  doneCount,
+  chestClaimedToday,
+  onToggle,
+  goChest,
+}: {
+  ui: KidTheme;
+  childName: string;
+  missions: Mission[];
+  doneCount: number;
+  chestClaimedToday: boolean;
+  onToggle: (mission: Mission) => void;
+  goChest: () => void;
+}) {
+  const allDone = missions.length > 0 && doneCount === missions.length;
+  const chestReady = allDone && !chestClaimedToday;
+  return (
+    <div style={{ display: "grid", gap: STACK_GAP, animation: "skadIn .45s ease both" }}>
+      <Card ui={ui}>
+        <SectionTitle
+          ui={ui}
+          kicker="Routine du matin"
+          title="Tes missions"
+          right={
+            <Pill ui={ui}>
+              {doneCount}/{missions.length}
+            </Pill>
+          }
+        />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+            gap: 14,
+          }}
+        >
+          {missions.map((mission, index) => (
+            <MissionCard
+              key={mission.id}
+              ui={ui}
+              mission={mission}
+              color={ui.accents[index % ui.accents.length]}
+              onToggle={onToggle}
+            />
+          ))}
+        </div>
+      </Card>
+
+      <Card
+        ui={ui}
+        style={{
+          background: chestReady
+            ? `linear-gradient(150deg,${ui.heroGrad[0]},${ui.heroGrad[1]})`
+            : ui.surface,
+          textAlign: "center",
+          color: chestReady ? "#fff" : ui.text,
+          transition: "background .4s",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 44,
+            marginBottom: 8,
+            animation: chestReady ? "skadFloat 1.6s ease-in-out infinite" : "none",
+          }}
+          aria-hidden="true"
+        >
+          {chestReady ? "🎉" : allDone ? "🌙" : "🧰"}
+        </div>
+        <h3
+          style={{
+            margin: "0 0 6px",
+            fontFamily: ui.fontTitle,
+            fontWeight: ui.titleWeight,
+            textTransform: ui.titleUpper ? "uppercase" : "none",
+            fontSize: 26,
+            color: chestReady ? "#fff" : ui.text,
+          }}
+        >
+          {chestReady
+            ? "Tout est terminé !"
+            : allDone
+              ? "Coffre du jour déjà ouvert !"
+              : "Le coffre est verrouillé"}
+        </h3>
+        <p
+          style={{
+            margin: chestReady || !allDone ? "0 0 18px" : 0,
+            fontFamily: ui.fontBody,
+            fontWeight: 600,
+            fontSize: 15,
+            color: chestReady ? "rgba(255,255,255,.9)" : ui.textSoft,
+            textWrap: "balance",
+          }}
+        >
+          {chestReady
+            ? "Ton coffre du jour est prêt à être ouvert."
+            : allDone
+              ? `Bravo ${childName}, reviens demain pour un nouveau trésor ! ✨`
+              : "Termine toutes tes missions pour le débloquer."}
+        </p>
+        {chestReady ? (
+          <Btn
+            ui={ui}
+            size="lg"
+            glow
+            color="#ffffff"
+            style={{ color: ui.primary }}
+            onClick={() => {
+              playCue("unlock");
+              goChest();
+            }}
+          >
+            🎁 Ouvrir le coffre !
+          </Btn>
+        ) : !allDone ? (
+          <Btn ui={ui} size="lg" disabled>
+            Pas encore…
+          </Btn>
+        ) : null}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- COFFRE (scène 3D) ----------------
+   L'enfant choisit quel coffre ouvrir : le coffre du jour (missions) ou
+   un coffre récompense (points). Le coffre 3D prend la couleur du palier. */
+type ChestPick = "daily" | RewardTier;
+
+const CHEST_PICK_LABELS: Record<ChestPick, { emoji: string; label: string }> = {
+  daily: { emoji: "🎁", label: "Jour" },
+  bronze: { emoji: "🥉", label: "Bronze" },
+  silver: { emoji: "🥈", label: "Argent" },
+  gold: { emoji: "🥇", label: "Doré" },
+};
+
+function ChestScreen({
+  ui,
+  reduced,
+  child,
+  rewards,
+  chestReady,
+  chestClaimedToday,
+  dailyTier,
+  nextStreak,
+  onDailyCollected,
+  drawTierReward,
+  onCelebrate,
+}: {
+  ui: KidTheme;
+  reduced: boolean;
+  child: Child;
+  rewards: Reward[];
+  chestReady: boolean;
+  chestClaimedToday: boolean;
+  dailyTier: RewardTier;
+  nextStreak: number;
+  onDailyCollected: () => void;
+  drawTierReward: (tier: RewardTier) => Promise<Reward | null>;
+  onCelebrate: () => void;
+}) {
+  const [selected, setSelected] = useState<ChestPick>("daily");
+  const [play, setPlay] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [pendingReward, setPendingReward] = useState<Reward | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Le coffre 3D prend les couleurs du palier sélectionné.
+  const sceneUi = useMemo<KidTheme>(
+    () =>
+      selected === "daily"
+        ? ui
+        : { ...ui, scene: { ...ui.scene, ...CHEST_TIER_COLORS[selected] } },
+    [ui, selected]
+  );
+
+  const dailyChestName =
+    REWARD_TIERS.find((reward) => reward.tier === dailyTier)?.chestName ?? "Coffre";
+  const dailyBonus = DAILY_CHEST_BONUS[dailyTier];
+
+  const tierInfo =
+    selected === "daily"
+      ? null
+      : {
+          chest: REWARD_TIERS.find((entry) => entry.tier === selected)!,
+          cost: CHEST_COSTS[selected],
+          pool: rewards.filter((reward) => reward.tier === selected),
+        };
+  const tierAffordable = tierInfo ? child.totalPoints >= tierInfo.cost : false;
+  const tierOpenable = tierInfo ? tierAffordable && tierInfo.pool.length > 0 : false;
+
+  function resetAnim() {
+    setPlay(false);
+    setOpened(false);
+    setPendingReward(null);
+  }
+
+  function pickChest(pick: ChestPick) {
+    if (pick === selected || play) {
+      return;
+    }
+    playCue("task");
+    setSelected(pick);
+    resetAnim();
+  }
+
+  async function handleOpen() {
+    if (busy || play) {
+      return;
+    }
+    if (selected === "daily") {
+      if (!chestReady) {
+        return;
+      }
+      playCue("task");
+      setPlay(true);
+      return;
+    }
+    if (!tierOpenable) {
+      return;
+    }
+    setBusy(true);
+    // Le tirage (et la dépense de points) se fait avant l'animation :
+    // la surprise est connue quand le coffre s'ouvre.
+    const reward = await drawTierReward(selected);
+    setBusy(false);
+    if (!reward) {
+      return;
+    }
+    playCue("task");
+    setPendingReward(reward);
+    setPlay(true);
+  }
+
+  const showOpenButton =
+    !play &&
+    ((selected === "daily" && chestReady) || (selected !== "daily" && tierOpenable));
+
+  // Message d'état quand on ne peut pas ouvrir le coffre sélectionné.
+  let statusMessage: string | null = null;
+  if (!play) {
+    if (selected === "daily") {
+      if (chestClaimedToday) {
+        statusMessage = `✅ Coffre ouvert ! Reviens demain, ${child.name} !`;
+      } else if (!chestReady) {
+        statusMessage = "🔒 Termine tes missions pour le débloquer.";
+      }
+    } else if (tierInfo) {
+      if (tierInfo.pool.length === 0) {
+        statusMessage = "Ce coffre est vide pour l'instant.";
+      } else if (!tierAffordable) {
+        statusMessage = `Encore ${tierInfo.cost - child.totalPoints} points et il est à toi !`;
+      }
+    }
+  }
+
+  return (
+    <Card
+      ui={ui}
+      style={{
+        padding: 0,
+        overflow: "hidden",
+        position: "relative",
+        height: "min(68vh,600px)",
+        animation: "skadIn .45s ease both",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `linear-gradient(180deg,${ui.scene.bgTop},${ui.scene.bgBottom})`,
+        }}
+      />
+      <ChestScene
+        ui={sceneUi}
+        play={play}
+        reduced={reduced}
+        intensity={1}
+        onOpened={() => {
+          playCue("open");
+          setOpened(true);
+        }}
+      />
+
+      {/* libellé haut */}
+      <div
+        style={{
+          position: "absolute",
+          top: 18,
+          left: 18,
+          right: 18,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: ui.fontBody,
+            fontWeight: 800,
+            fontSize: 11,
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            color: "#fff",
+            background: "rgba(0,0,0,.25)",
+            padding: "7px 14px",
+            borderRadius: 999,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          {selected === "daily" ? "Coffre du jour" : tierInfo?.chest.chestName}
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontFamily: ui.fontBody,
+            fontWeight: 800,
+            fontSize: 14,
+            whiteSpace: "nowrap",
+            color: "#fff",
+            background: "rgba(0,0,0,.25)",
+            padding: "7px 14px",
+            borderRadius: 999,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          ⭐ {child.totalPoints} pts
+        </span>
+      </div>
+
+      {/* sélecteur + CTA en bas */}
+      {!opened ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 20,
+            display: "grid",
+            gap: 12,
+            justifyItems: "center",
+            padding: "0 16px",
+          }}
+        >
+          {showOpenButton ? (
+            <Btn ui={ui} size="lg" glow color={ui.primary} disabled={busy} onClick={handleOpen}>
+              {selected === "daily"
+                ? "✨ Ouvrir le coffre !"
+                : `✨ Ouvrir ! (${tierInfo?.cost} pts)`}
+            </Btn>
+          ) : statusMessage ? (
+            <span
+              style={{
+                fontFamily: ui.fontBody,
+                fontWeight: 800,
+                fontSize: 14,
+                textAlign: "center",
+                textWrap: "balance",
+                color: "#fff",
+                background: "rgba(0,0,0,.3)",
+                padding: "10px 20px",
+                borderRadius: 999,
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              {statusMessage}
+            </span>
+          ) : null}
+
+          {!play ? (
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                padding: 5,
+                borderRadius: 999,
+                background: "rgba(0,0,0,.3)",
+                backdropFilter: "blur(10px)",
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              {(Object.keys(CHEST_PICK_LABELS) as ChestPick[]).map((pick) => {
+                const on = pick === selected;
+                const meta = CHEST_PICK_LABELS[pick];
+                const sub =
+                  pick === "daily"
+                    ? chestClaimedToday
+                      ? "Demain"
+                      : chestReady
+                        ? "Prêt !"
+                        : "🔒"
+                    : `${CHEST_COSTS[pick]} pts`;
+                return (
+                  <button
+                    key={pick}
+                    type="button"
+                    onClick={() => pickChest(pick)}
+                    aria-pressed={on}
+                    className="skad-focus"
+                    style={{
+                      appearance: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                      fontFamily: ui.fontBody,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      padding: "7px 14px",
+                      borderRadius: 999,
+                      color: on ? ui.textOnAccent : "rgba(255,255,255,.8)",
+                      background: on
+                        ? `linear-gradient(160deg,${mix(ui.primary, "#fff", 0.2)},${ui.primary})`
+                        : "transparent",
+                      transition: "all .2s",
+                    }}
+                  >
+                    <span>
+                      <span aria-hidden="true">{meta.emoji}</span> {meta.label}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, opacity: 0.85 }}>{sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* récompense révélée */}
+      {opened ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            animation: "skadIn .4s ease both",
+            background: "rgba(0,0,0,.25)",
+          }}
+        >
+          <Card
+            ui={ui}
+            style={{
+              width: "min(360px,86%)",
+              textAlign: "center",
+              background: ui.glass ? "rgba(30,22,70,.85)" : ui.surface,
+              animation: "skadPop .5s cubic-bezier(.34,1.8,.5,1) both",
+            }}
+          >
+            <div
+              style={{ fontSize: 56, marginBottom: 8, animation: "skadFloat 2s ease-in-out infinite" }}
+              aria-hidden="true"
+            >
+              {selected === "daily" ? "🏆" : pendingReward?.icon ?? "🎁"}
+            </div>
+            <Pill ui={ui} style={{ marginBottom: 8 }}>
+              {selected === "daily" ? dailyChestName : tierInfo?.chest.chestName}
+            </Pill>
+            <h3
+              style={{
+                margin: "6px 0 4px",
+                fontFamily: ui.fontTitle,
+                fontWeight: ui.titleWeight,
+                textTransform: ui.titleUpper ? "uppercase" : "none",
+                fontSize: 26,
+                color: ui.text,
+                textWrap: "balance",
+              }}
+            >
+              {selected === "daily" ? "Trophée gagné !" : pendingReward?.title}
+            </h3>
+            <p
+              style={{
+                margin: "0 0 18px",
+                fontFamily: ui.fontBody,
+                fontWeight: 600,
+                color: ui.textSoft,
+                textWrap: "balance",
+              }}
+            >
+              {selected === "daily"
+                ? `+${dailyBonus} points bonus · ${nextStreak} matin${nextStreak > 1 ? "s" : ""} de suite !`
+                : "Tu as gagné cette récompense. Bravo !"}
+            </p>
+            <Btn
+              ui={ui}
+              full
+              size="lg"
+              onClick={() => {
+                if (selected === "daily") {
+                  onDailyCollected();
+                } else {
+                  onCelebrate();
+                  resetAnim();
+                }
+              }}
+            >
+              Génial ! 🎈
+            </Btn>
+          </Card>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+/* ============================ APP ============================ */
 export function KidQuest() {
   const { user, loading } = useAuth();
   const parentId = user?.uid ?? null;
+  const reduced = usePrefersReducedMotion();
 
   const [children, setChildren] = useState<Child[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -176,15 +1739,9 @@ export function KidQuest() {
       ? null
       : window.localStorage.getItem(ACTIVE_CHILD_KEY)
   );
+  const [tab, setTab] = useState<Tab>("home");
   const [burstKey, setBurstKey] = useState(0);
-  const [lastTappedId, setLastTappedId] = useState<string | null>(null);
-  const [openedChest, setOpenedChest] = useState<RewardTier | null>(null);
-  const [chestRevealReady, setChestRevealReady] = useState(false);
-  const [wonPrize, setWonPrize] = useState<{
-    tier: RewardTier;
-    reward: Reward;
-  } | null>(null);
-  const [prizeRevealReady, setPrizeRevealReady] = useState(false);
+  const [wonPrize, setWonPrize] = useState<{ tier: RewardTier; reward: Reward } | null>(null);
 
   const soundEnabled = useSyncExternalStore(
     subscribeToSound,
@@ -259,16 +1816,24 @@ export function KidQuest() {
     ).then(() => window.localStorage.setItem(guardKey, today));
   }, [parentId, activeChildId, missions]);
 
+  // Thème résolu pour l'enfant actif (style + personnage + couleur de blob).
+  const ui = useMemo(
+    () =>
+      resolveKidTheme(
+        activeChild?.theme ?? null,
+        activeChild?.character ?? null,
+        activeChild?.blobColor ?? null
+      ),
+    [activeChild?.theme, activeChild?.character, activeChild?.blobColor]
+  );
+
   const doneCount = useMemo(
     () => missions.filter((mission) => mission.status === "done").length,
     [missions]
   );
   const allDone = missions.length > 0 && doneCount === missions.length;
-  const progressPercent = missions.length
-    ? (doneCount / missions.length) * 100
-    : 0;
 
-  // Gamification : série de matins, coffre du jour et grille de trophées.
+  // Gamification : série de matins et coffre du jour.
   const streak = activeChild?.streak ?? 0;
   const chestClaimedToday = activeChild?.lastStreakDay === todayKey();
   const canClaimChest = allDone && !chestClaimedToday;
@@ -279,12 +1844,6 @@ export function KidQuest() {
       ? streak + 1
       : 1;
   const dailyTier = tierForStreak(nextStreak);
-  const trophyCount = Math.max(6, Math.min(12, Math.max(streak, 6)));
-  const trophySlots = useMemo(
-    () =>
-      Array.from({ length: trophyCount }, (_, index) => index < streak),
-    [trophyCount, streak]
-  );
 
   function selectChild(childId: string) {
     window.localStorage.setItem(ACTIVE_CHILD_KEY, childId);
@@ -296,9 +1855,6 @@ export function KidQuest() {
       return;
     }
     const nextStatus = mission.status === "done" ? "pending" : "done";
-    setLastTappedId(null);
-    window.requestAnimationFrame(() => setLastTappedId(mission.id));
-
     await setMissionStatus(parentId, activeChildId, mission.id, nextStatus);
 
     if (nextStatus === "done") {
@@ -308,13 +1864,15 @@ export function KidQuest() {
     }
   }
 
-  async function handleOpenRewardChest(tier: RewardTier) {
+  // Tire une récompense dans un coffre à points (dépense atomique).
+  // Utilisé par la modale de l'accueil ET par la scène 3D de l'onglet Coffre.
+  async function drawTierReward(tier: RewardTier): Promise<Reward | null> {
     if (!parentId || !activeChildId || !activeChild) {
-      return;
+      return null;
     }
     const pool = rewards.filter((reward) => reward.tier === tier);
     if (activeChild.totalPoints < CHEST_COSTS[tier] || pool.length === 0) {
-      return;
+      return null;
     }
     const result = await openChest(
       parentId,
@@ -323,48 +1881,58 @@ export function KidQuest() {
       pool.map((reward) => reward.id)
     );
     if (!result) {
-      return;
+      return null;
     }
-    const reward = pool.find((entry) => entry.id === result.rewardId);
-    if (!reward) {
-      return;
-    }
-    setPrizeRevealReady(false);
-    setWonPrize({ tier, reward });
+    return pool.find((entry) => entry.id === result.rewardId) ?? null;
+  }
+
+  function celebrate() {
     playCue("reward");
     setBurstKey((value) => value + 1);
   }
 
-  function handleCloseWonPrize() {
-    setWonPrize(null);
-    setPrizeRevealReady(false);
+  async function handleOpenRewardChest(tier: RewardTier) {
+    const reward = await drawTierReward(tier);
+    if (!reward) {
+      return;
+    }
+    setWonPrize({ tier, reward });
+    celebrate();
   }
 
-  async function handleOpenDailyChest() {
+  async function handleDailyChestCollected() {
     if (!parentId || !activeChildId || !canClaimChest) {
       return;
     }
     const result = await claimDailyChest(parentId, activeChildId);
-    if (!result) {
-      return;
+    if (result) {
+      celebrate();
     }
-    setChestRevealReady(false);
-    setOpenedChest(result.tier);
-    playCue("reward");
-    setBurstKey((value) => value + 1);
+    setTab("home");
   }
 
-  function handleCloseChest() {
-    setOpenedChest(null);
-    setChestRevealReady(false);
+  // Personnalisation (persistée sur le profil de l'enfant).
+  function pickTheme(theme: ThemeId) {
+    if (!parentId || !activeChildId) return;
+    playCue("task");
+    // Changer de thème remet la couleur du blob à celle du nouveau thème.
+    void updateChild(parentId, activeChildId, { theme, blobColor: null });
+  }
+  function pickCharacter(character: CharacterId) {
+    if (!parentId || !activeChildId) return;
+    playCue("task");
+    void updateChild(parentId, activeChildId, { character });
+  }
+  function pickBlobColor(blobColor: string | null) {
+    if (!parentId || !activeChildId) return;
+    playCue("task");
+    void updateChild(parentId, activeChildId, { blobColor });
   }
 
   if (loading) {
     return (
       <CenteredCard>
-        <p className="text-lg font-black text-[color:var(--ink-soft)]">
-          Chargement…
-        </p>
+        <p style={{ margin: 0, fontWeight: 800, fontSize: 17 }}>Chargement…</p>
       </CenteredCard>
     );
   }
@@ -374,17 +1942,35 @@ export function KidQuest() {
       <CenteredCard>
         <PiLockFill
           aria-hidden="true"
-          className="mx-auto h-12 w-12 text-[color:var(--primary)]"
+          style={{ margin: "0 auto", width: 48, height: 48, color: "#ff5d8f" }}
         />
-        <h1 className="mt-4 font-display text-4xl leading-none text-foreground">
+        <h1
+          style={{
+            margin: "16px 0 0",
+            fontFamily: "var(--font-baloo)",
+            fontWeight: 800,
+            fontSize: 34,
+            lineHeight: 1,
+          }}
+        >
           Bonjour !
         </h1>
-        <p className="mt-3 text-base font-bold leading-7 text-[color:var(--ink-soft)]">
+        <p style={{ margin: "12px 0 0", fontWeight: 700, lineHeight: 1.7, color: "#9a8aa3" }}>
           Demande à un parent de se connecter pour préparer tes missions.
         </p>
         <Link
           href="/parent"
-          className="task-button mt-6 inline-block bg-[color:var(--primary)] text-white"
+          className="skad-focus"
+          style={{
+            display: "inline-block",
+            marginTop: 24,
+            background: "linear-gradient(160deg,#ff9bbb,#ff4f86)",
+            color: "#fff",
+            fontWeight: 800,
+            padding: "13px 26px",
+            borderRadius: 18,
+            boxShadow: "0 10px 20px -8px rgba(255,93,143,.8)",
+          }}
         >
           Espace parent
         </Link>
@@ -395,15 +1981,33 @@ export function KidQuest() {
   if (!activeChild) {
     return (
       <CenteredCard>
-        <h1 className="font-display text-4xl leading-none text-foreground">
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-baloo)",
+            fontWeight: 800,
+            fontSize: 34,
+            lineHeight: 1,
+          }}
+        >
           Presque prêt
         </h1>
-        <p className="mt-3 text-base font-bold leading-7 text-[color:var(--ink-soft)]">
+        <p style={{ margin: "12px 0 0", fontWeight: 700, lineHeight: 1.7, color: "#9a8aa3" }}>
           Ajoute un enfant et ses missions dans l&apos;espace parent.
         </p>
         <Link
           href="/parent"
-          className="task-button mt-6 inline-block bg-[color:var(--primary)] text-white"
+          className="skad-focus"
+          style={{
+            display: "inline-block",
+            marginTop: 24,
+            background: "linear-gradient(160deg,#ff9bbb,#ff4f86)",
+            color: "#fff",
+            fontWeight: 800,
+            padding: "13px 26px",
+            borderRadius: 18,
+            boxShadow: "0 10px 20px -8px rgba(255,93,143,.8)",
+          }}
         >
           Espace parent
         </Link>
@@ -412,553 +2016,156 @@ export function KidQuest() {
   }
 
   return (
-    <main className="page-stage min-h-screen px-4 py-5 sm:px-6 sm:py-8">
+    <main
+      style={{
+        minHeight: "100vh",
+        background: ui.bg,
+        color: ui.text,
+        fontFamily: `${ui.fontBody}, system-ui, sans-serif`,
+        transition: "background .5s",
+      }}
+    >
+      <TextureOverlay ui={ui} />
       <ConfettiBurst burstKey={burstKey} />
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="hero-panel p-5 text-white sm:p-7">
-          <div className="hero-actions">
-            <button
-              type="button"
-              onClick={() => toggleSound()}
-              aria-pressed={soundEnabled}
-              aria-label={soundEnabled ? "Couper le son" : "Activer le son"}
-              className="sound-toggle"
-            >
-              {soundEnabled ? (
-                <PiSpeakerHighFill aria-hidden="true" className="sound-toggle-icon" />
-              ) : (
-                <PiSpeakerSlashFill aria-hidden="true" className="sound-toggle-icon" />
-              )}
-            </button>
-            <Link href="/parent" aria-label="Espace parent" className="sound-toggle">
-              <PiGearSixFill aria-hidden="true" className="sound-toggle-icon" />
-            </Link>
-          </div>
+      <div
+        style={{
+          maxWidth: 1180,
+          margin: "0 auto",
+          padding: "14px clamp(14px,3vw,22px) 60px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <TopBar
+          ui={ui}
+          child={activeChild}
+          tab={tab}
+          setTab={setTab}
+          soundEnabled={soundEnabled}
+        />
+        <div style={{ height: 18 }} />
 
-          <div className="hero-grid">
-            <div>
-              <div className="hero-kicker">
-                <ChildAvatar
-                  avatar={activeChild.avatar}
-                  photoURL={activeChild.photoURL}
-                  name={activeChild.name}
-                  size={28}
-                />
-                Salut {activeChild.name}
-              </div>
-              <h1 className="mt-5 font-display text-[clamp(3.4rem,9vw,6rem)] leading-[0.9] tracking-[0.02em]">
-                Skadoush
-              </h1>
-              <p className="hero-subcopy mt-4">
-                Termine tes missions du matin et gagne des points.
-              </p>
-
-              <div className="mt-7 space-y-3">
-                <div className="flex items-center justify-between text-sm font-extrabold uppercase tracking-[0.08em] text-white">
-                  <span>Missions</span>
-                  <span>
-                    {doneCount}/{missions.length}
-                  </span>
-                </div>
-                <div className="progress-track">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`game-status game-status--${allDone ? "ready" : "locked"}`}
-              aria-live="polite"
-            >
-              <div className="game-status-orbit">
-                <PiStarFill aria-hidden="true" className="game-status-icon" />
-              </div>
-              <p className="game-status-kicker">Points</p>
-              <h2 className="game-status-title">{activeChild.totalPoints}</h2>
-              <p className="game-status-copy">
-                {allDone
-                  ? "Toutes les missions sont faites. Bravo !"
-                  : "Termine tes missions pour gagner des points."}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="hero-console p-4">
-              <div className="hero-console-line">
-                <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                  Trophées
-                </p>
-                <span className="hero-console-icon-badge">
-                  <TrophyMark className="hero-console-icon hero-console-icon--trophy" />
-                </span>
-              </div>
-              <p className="mt-2 text-xl font-black">{streak}</p>
-            </div>
-            <div className="hero-console p-4">
-              <div className="hero-console-line">
-                <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                  Coffre du jour
-                </p>
-                <span className="hero-console-icon-badge">
-                  <ChestGlyph
-                    tier={dailyTier}
-                    className="hero-console-icon hero-console-icon--chest"
-                  />
-                </span>
-              </div>
-              <p className="mt-2 text-xl font-black">
-                {chestClaimedToday ? "Ouvert" : canClaimChest ? "Prêt !" : "Verrouillé"}
-              </p>
-            </div>
-          </div>
-
-          {children.length > 1 ? (
-            <div className="mt-6 flex flex-wrap gap-2">
-              {children.map((child) => (
-                <button
-                  key={child.id}
-                  type="button"
-                  onClick={() => selectChild(child.id)}
-                  aria-pressed={child.id === activeChildId}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold transition ${
-                    child.id === activeChildId
-                      ? "border-white bg-white/20 text-white"
-                      : "border-white/30 text-white/70"
-                  }`}
-                >
-                  <ChildAvatar
-                    avatar={child.avatar}
-                    photoURL={child.photoURL}
-                    name={child.name}
-                    size={24}
-                  />
-                  {child.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="panel-card p-5 sm:p-6">
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="section-kicker">Missions</p>
-              <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                Tes cartes
-              </h2>
-            </div>
-            <div className="count-pill">
-              {doneCount}/{missions.length}
-            </div>
-          </div>
-
-          {missions.length === 0 ? (
-            <p className="rounded-2xl bg-[color:var(--surface-soft)] p-5 text-center text-base font-bold text-[color:var(--ink-soft)]">
-              Aucune mission pour le moment. Un parent peut les ajouter dans
-              l&apos;espace parent.
-            </p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {missions.map((mission, index) => {
-                const theme = MISSION_THEMES[index % MISSION_THEMES.length];
-                const done = mission.status === "done";
-
-                return (
-                  <button
-                    type="button"
-                    key={mission.id}
-                    aria-pressed={done}
-                    onClick={() => handleToggleMission(mission)}
-                    className={`task-card task-card-button ${done ? "task-card--done" : ""} ${lastTappedId === mission.id ? "task-card--tap" : ""}`}
-                    style={{ background: done ? undefined : theme.gradient }}
-                  >
-                    <div className="relative z-10 flex h-full flex-col p-5">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-3xl"
-                          style={{ backgroundColor: done ? "#D9F7E4" : `${theme.accent}1F` }}
-                        >
-                          <span aria-hidden="true">{mission.icon}</span>
-                        </div>
-                        <div className="min-w-0 flex-1 text-left">
-                          <div
-                            className="task-chip"
-                            style={{
-                              backgroundColor: done ? "#D9F7E4" : `${theme.accent}22`,
-                              color: done ? "#14653B" : theme.accent,
-                            }}
-                          >
-                            {done ? "Fait" : `+${mission.points} pts`}
-                          </div>
-                          <h3 className="mt-3 text-2xl font-black leading-tight text-foreground">
-                            {mission.title}
-                          </h3>
-                          {mission.description ? (
-                            <p className="mt-2 text-base leading-7 text-[color:var(--ink-soft)]">
-                              {mission.description}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div
-                        className="task-action-pill mt-5"
-                        style={{
-                          backgroundColor: done ? "#E8F7EE" : theme.button,
-                          color: done ? "#14653B" : theme.buttonText,
-                        }}
-                      >
-                        {done ? "Fait !" : "C'est fait"}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-          <section className="panel-card overflow-hidden p-5 sm:p-6">
-            <div className="flex flex-col gap-5">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="section-kicker">Coffres</p>
-                  <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                    Coffres bonus
-                  </h2>
-                </div>
-                <div className="count-pill">
-                  {chestClaimedToday ? "Ouvert" : canClaimChest ? "1 coffre" : "Aucun"}
-                </div>
-              </div>
-
-              <div className="treasure-claim p-5">
-                <div className="treasure-claim-head">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.08em] text-white/80">
-                      Coffre du jour
-                    </p>
-                    <h3 className="mt-2 text-3xl font-black text-white">
-                      {canClaimChest
-                        ? `${REWARD_TIERS.find((reward) => reward.tier === dailyTier)?.chestName} prêt`
-                        : chestClaimedToday
-                          ? "Coffre ouvert"
-                          : "Coffre verrouillé"}
-                    </h3>
-                    <p className="mt-2 text-base font-bold leading-7 text-white/86">
-                      {canClaimChest
-                        ? "Bravo, ouvre ton coffre !"
-                        : chestClaimedToday
-                          ? "Demain, un nouveau coffre t'attend."
-                          : "Termine toutes tes missions pour le gagner."}
-                    </p>
-                  </div>
-                  <div className="treasure-claim-glyph">
-                    <ChestGlyph tier={dailyTier} className="treasure-claim-icon" />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={!canClaimChest}
-                  onClick={handleOpenDailyChest}
-                  className="task-button mt-5 w-full bg-white text-[color:var(--primary)] disabled:bg-white/70 disabled:text-[color:var(--primary)]"
-                >
-                  {canClaimChest
-                    ? "Ouvrir"
-                    : chestClaimedToday
-                      ? "Déjà ouvert"
-                      : "Pas encore"}
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {REWARD_TIERS.map((reward) => {
-                const isReady = canClaimChest && dailyTier === reward.tier;
-                const cycleProgress = streak % reward.threshold;
-                const ratio = isReady
-                  ? 1
-                  : reward.tier === "bronze"
-                    ? missions.length
-                      ? doneCount / missions.length
-                      : 0
-                    : streak > 0 && cycleProgress === 0
-                      ? 1
-                      : cycleProgress / reward.threshold;
-                const progressLabel = isReady
-                  ? "Prêt"
-                  : reward.tier === "bronze"
-                    ? `${doneCount}/${missions.length || 0}`
-                    : `${streak > 0 && cycleProgress === 0 ? reward.threshold : cycleProgress}/${reward.threshold}`;
-
-                return (
-                  <div
-                    key={reward.tier}
-                    className={`reward-card reward-card--${reward.tier} ${isReady ? "reward-card--ready" : ""}`}
-                  >
-                    <div className="reward-card-head">
-                      <div
-                        className={`mini-chest mini-chest--${reward.tier}`}
-                        aria-hidden="true"
-                      >
-                        <ChestGlyph tier={reward.tier} className="mini-chest-icon" />
-                      </div>
-                    </div>
-                    <div
-                      className="reward-label"
-                      style={{
-                        backgroundColor: `${reward.accent}22`,
-                        color: reward.accent,
-                      }}
-                    >
-                      {reward.label}
-                    </div>
-                    <h3 className="mt-4 text-xl font-black text-foreground">
-                      {reward.chestName}
-                    </h3>
-                    <div className="mt-4">
-                      <div className="reward-progress-head">
-                        <span>Progression</span>
-                        <span>{progressLabel}</span>
-                      </div>
-                      <div className="reward-progress">
-                        <span style={{ width: `${Math.min(1, ratio) * 100}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="panel-card p-5 sm:p-6">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="section-kicker">Trophées</p>
-                <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                  Tes trophées
-                </h2>
-              </div>
-              <div className="count-pill">{streak}</div>
-            </div>
-
-            <div className="trophy-hero mt-5">
-              <div className="trophy-hero-icon">
-                <TrophyMark className="h-14 w-14" />
-              </div>
-              <div>
-                <p className="text-4xl font-black text-foreground">{streak}</p>
-                <p className="mt-1 text-sm font-bold text-[color:var(--ink-soft)]">
-                  1 trophée = 1 matin de suite
-                </p>
-              </div>
-            </div>
-
-            <div className="trophy-grid mt-5">
-              {trophySlots.map((earned, index) => (
-                <div
-                  key={`trophy-${index}`}
-                  className={`trophy-slot ${earned ? "trophy-slot--earned" : ""}`}
-                >
-                  <TrophyMark className="h-10 w-10" />
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <section className="panel-card p-5 sm:p-6">
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="section-kicker">Récompenses</p>
-              <h2 className="mt-3 font-display text-4xl leading-none text-foreground">
-                Coffres à ouvrir
-              </h2>
-            </div>
-            <div className="count-pill">{activeChild.totalPoints} pts</div>
-          </div>
-
-          {rewards.length === 0 ? (
-            <p className="rounded-2xl bg-[color:var(--surface-soft)] p-5 text-center text-base font-bold text-[color:var(--ink-soft)]">
-              Pas encore de récompense. Demande à un parent d&apos;en glisser dans
-              les coffres.
-            </p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {REWARD_TIERS.map((chest) => {
-                const pool = rewards.filter(
-                  (reward) => reward.tier === chest.tier
-                );
-                const cost = CHEST_COSTS[chest.tier];
-                const affordable = activeChild.totalPoints >= cost;
-                const openable = affordable && pool.length > 0;
-                const ratio = Math.min(1, activeChild.totalPoints / cost);
-
-                return (
-                  <button
-                    type="button"
-                    key={chest.tier}
-                    disabled={!openable}
-                    onClick={() => handleOpenRewardChest(chest.tier)}
-                    className={`reward-card reward-card-button reward-card--${chest.tier} ${openable ? "reward-card--ready" : ""}`}
-                  >
-                    <div className="reward-card-head">
-                      <div
-                        className={`mini-chest mini-chest--${chest.tier}`}
-                        aria-hidden="true"
-                      >
-                        <ChestGlyph
-                          tier={chest.tier}
-                          className="mini-chest-icon"
-                        />
-                      </div>
-                      <div className="reward-stack-count">{cost} pts</div>
-                    </div>
-                    <h3 className="mt-4 text-xl font-black text-foreground">
-                      {chest.chestName}
-                    </h3>
-                    <p className="mt-2 text-sm font-bold leading-6 text-[color:var(--ink-soft)]">
-                      {pool.length === 0
-                        ? "Coffre vide"
-                        : openable
-                          ? "Prêt à ouvrir !"
-                          : `${pool.length} surprise${pool.length > 1 ? "s" : ""} dedans`}
-                    </p>
-                    <div className="mt-4">
-                      <div className="reward-progress-head">
-                        <span>Progression</span>
-                        <span>
-                          {Math.min(activeChild.totalPoints, cost)}/{cost}
-                        </span>
-                      </div>
-                      <div className="reward-progress">
-                        <span style={{ width: `${ratio * 100}%` }} />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        {tab === "home" ? (
+          <Dashboard
+            ui={ui}
+            child={activeChild}
+            kids={children}
+            missions={missions}
+            doneCount={doneCount}
+            chestReady={canClaimChest}
+            chestClaimedToday={chestClaimedToday}
+            dailyTier={dailyTier}
+            rewards={rewards}
+            goMissions={() => setTab("missions")}
+            goChest={() => setTab("chest")}
+            onOpenRewardChest={handleOpenRewardChest}
+            onSelectChild={selectChild}
+            onPickTheme={pickTheme}
+            onPickCharacter={pickCharacter}
+            onPickBlobColor={pickBlobColor}
+          />
+        ) : null}
+        {tab === "missions" ? (
+          <MissionsScreen
+            ui={ui}
+            childName={activeChild.name}
+            missions={missions}
+            doneCount={doneCount}
+            chestClaimedToday={chestClaimedToday}
+            onToggle={handleToggleMission}
+            goChest={() => setTab("chest")}
+          />
+        ) : null}
+        {tab === "chest" ? (
+          <ChestScreen
+            key={`${activeChild.id}-${canClaimChest}`}
+            ui={ui}
+            reduced={reduced}
+            child={activeChild}
+            rewards={rewards}
+            chestReady={canClaimChest}
+            chestClaimedToday={chestClaimedToday}
+            dailyTier={dailyTier}
+            nextStreak={nextStreak}
+            onDailyCollected={handleDailyChestCollected}
+            drawTierReward={drawTierReward}
+            onCelebrate={celebrate}
+          />
+        ) : null}
       </div>
 
-      {openedChest ? (
-        <div className="modal-backdrop" onClick={handleCloseChest}>
-          <div
-            className={`chest-modal-card chest-modal-card--${openedChest} ${chestRevealReady ? "chest-modal-card--revealed" : "chest-modal-card--opening"} p-6`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="kid-chest-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <RewardChest
-              tier={openedChest}
-              revealed={chestRevealReady}
-              onOpened={() => setChestRevealReady(true)}
-            />
-
-            <div
-              className={`reward-reveal ${chestRevealReady ? "reward-reveal--ready" : ""}`}
-              aria-live="polite"
-            >
-              {chestRevealReady ? (
-                <>
-                  <div className="reward-prize-card">
-                    <RewardPrize tier={openedChest} />
-                  </div>
-                  <p className="mx-auto mt-4 w-fit rounded-full bg-[color:var(--surface-soft)] px-4 py-2 text-center text-xs font-black uppercase tracking-[0.08em] text-foreground">
-                    {REWARD_TIERS.find((reward) => reward.tier === openedChest)?.chestName}
-                  </p>
-                  <h2
-                    id="kid-chest-title"
-                    className="mt-4 text-center text-3xl font-black text-foreground"
-                  >
-                    {CHEST_CELEBRATION[openedChest]}
-                  </h2>
-                  <p className="mx-auto mt-3 max-w-sm text-center text-base font-bold leading-7 text-[color:var(--ink-soft)]">
-                    Série de {streak} matin{streak > 1 ? "s" : ""} de suite. Continue !
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleCloseChest}
-                    className="task-button mt-6 w-full bg-[color:var(--primary)] text-white"
-                  >
-                    Trop bien
-                  </button>
-                </>
-              ) : (
-                <p
-                  id="kid-chest-title"
-                  className="chest-opening-copy text-center text-2xl font-black text-foreground"
-                >
-                  Ça arrive...
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
+      {/* récompense gagnée (coffre à points) */}
       {wonPrize ? (
-        <div className="modal-backdrop" onClick={handleCloseWonPrize}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(10,8,30,.5)",
+            backdropFilter: "blur(4px)",
+            padding: 16,
+          }}
+          onClick={() => setWonPrize(null)}
+        >
           <div
-            className={`chest-modal-card chest-modal-card--${wonPrize.tier} ${prizeRevealReady ? "chest-modal-card--revealed" : "chest-modal-card--opening"} p-6`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="kid-prize-title"
             onClick={(event) => event.stopPropagation()}
+            style={{ width: "min(380px,100%)" }}
           >
-            <RewardChest
-              tier={wonPrize.tier}
-              revealed={prizeRevealReady}
-              onOpened={() => setPrizeRevealReady(true)}
-            />
-
-            <div
-              className={`reward-reveal ${prizeRevealReady ? "reward-reveal--ready" : ""}`}
-              aria-live="polite"
+            <Card
+              ui={ui}
+              style={{
+                textAlign: "center",
+                background: ui.glass ? "rgba(30,22,70,.92)" : ui.surface,
+                animation: "skadPop .5s cubic-bezier(.34,1.8,.5,1) both",
+                padding: 28,
+              }}
             >
-              {prizeRevealReady ? (
-                <>
-                  <div className="reward-prize-card text-center text-6xl">
-                    <span aria-hidden="true">{wonPrize.reward.icon}</span>
-                  </div>
-                  <p className="mx-auto mt-4 w-fit rounded-full bg-[color:var(--surface-soft)] px-4 py-2 text-center text-xs font-black uppercase tracking-[0.08em] text-foreground">
-                    {REWARD_TIERS.find((chest) => chest.tier === wonPrize.tier)?.chestName}
-                  </p>
-                  <h2
-                    id="kid-prize-title"
-                    className="mt-4 text-center text-3xl font-black text-foreground"
-                  >
-                    {wonPrize.reward.title}
-                  </h2>
-                  <p className="mx-auto mt-3 max-w-sm text-center text-base font-bold leading-7 text-[color:var(--ink-soft)]">
-                    Tu as gagné cette récompense. Bravo !
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleCloseWonPrize}
-                    className="task-button mt-6 w-full bg-[color:var(--primary)] text-white"
-                  >
-                    Trop bien
-                  </button>
-                </>
-              ) : (
-                <p
-                  id="kid-prize-title"
-                  className="chest-opening-copy text-center text-2xl font-black text-foreground"
-                >
-                  Ça arrive...
-                </p>
-              )}
-            </div>
+              <div
+                style={{
+                  fontSize: 64,
+                  marginBottom: 8,
+                  animation: "skadFloat 2s ease-in-out infinite",
+                }}
+                aria-hidden="true"
+              >
+                {wonPrize.reward.icon}
+              </div>
+              <Pill ui={ui} style={{ marginBottom: 8 }}>
+                {REWARD_TIERS.find((chest) => chest.tier === wonPrize.tier)?.chestName}
+              </Pill>
+              <h2
+                id="kid-prize-title"
+                style={{
+                  margin: "6px 0 4px",
+                  fontFamily: ui.fontTitle,
+                  fontWeight: ui.titleWeight,
+                  textTransform: ui.titleUpper ? "uppercase" : "none",
+                  fontSize: 28,
+                  color: ui.text,
+                }}
+              >
+                {wonPrize.reward.title}
+              </h2>
+              <p
+                style={{
+                  margin: "0 0 18px",
+                  fontFamily: ui.fontBody,
+                  fontWeight: 600,
+                  color: ui.textSoft,
+                }}
+              >
+                Tu as gagné cette récompense. Bravo !
+              </p>
+              <Btn ui={ui} full size="lg" onClick={() => setWonPrize(null)}>
+                Trop bien ! 🎈
+              </Btn>
+            </Card>
           </div>
         </div>
       ) : null}

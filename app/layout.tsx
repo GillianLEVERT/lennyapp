@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { bodyFont, displayFont } from "./fonts";
+import {
+  balooFont,
+  bodyFont,
+  displayFont,
+  fredokaFont,
+  luckiestFont,
+  nunitoFont,
+  quicksandFont,
+} from "./fonts";
 import { AuthProvider } from "@/components/auth-provider";
 import { PwaRegistration } from "@/components/pwa-registration";
 
@@ -32,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${bodyFont.variable} ${displayFont.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${displayFont.variable} ${balooFont.variable} ${nunitoFont.variable} ${luckiestFont.variable} ${fredokaFont.variable} ${quicksandFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AuthProvider>{children}</AuthProvider>

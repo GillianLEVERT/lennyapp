@@ -24,6 +24,15 @@ export const CHEST_COSTS: Record<RewardTier, number> = {
   gold: 80,
 };
 
+// Points bonus gagnés en ouvrant le coffre du jour, par palier.
+// C'est ce qui rend la série utile : chaque matin réussi alimente les
+// points qui servent ensuite à ouvrir les coffres récompenses.
+export const DAILY_CHEST_BONUS: Record<RewardTier, number> = {
+  bronze: 10,
+  silver: 20,
+  gold: 40,
+};
+
 // Palier déduit d'un coût en points : <40 bronze, 40-60 argent, >60 or.
 // Sert de repli pour les récompenses sans tier (presets / anciennes données).
 export function tierFromPointsCost(pointsCost: number): RewardTier {

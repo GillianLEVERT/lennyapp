@@ -45,10 +45,31 @@ import {
   type MissionPreset,
   type RewardPreset,
 } from "@/lib/presets";
+import { BlobMascot } from "@/components/blob-mascot";
+import {
+  CHARACTER_ORDER,
+  CHARACTERS,
+  resolveKidTheme,
+  THEME_ORDER,
+  THEMES,
+  type CharacterId,
+  type ThemeId,
+} from "@/lib/themes";
 
-const CHILD_AVATARS = ["🧒", "👦", "👧", "🦸", "🦸‍♀️", "🐯", "🦊", "🚀"];
-const MISSION_ICONS = ["🎯", "🪥", "💧", "👕", "🥣", "🤸", "🛏️", "🧸", "👟", "🎒"];
-const REWARD_ICONS = ["🎁", "🎮", "🍦", "🏞️", "📚", "⚽", "🎬", "🍕"];
+const CHILD_AVATARS = [
+  "🧒", "👦", "👧", "🦸", "🦸‍♀️", "🧚", "🧜‍♀️", "🥷",
+  "🐯", "🦊", "🐼", "🦄", "🐸", "🐱", "🐶", "🦖",
+  "🚀", "🤖", "👾", "⚽",
+];
+const MISSION_ICONS = [
+  "🎯", "🪥", "💧", "👕", "🥣", "🤸", "🛏️", "🧸",
+  "👟", "🎒", "🧦", "🚿", "🪮", "🐕", "🌱", "📖",
+  "🍎", "🧹", "🚽", "😴",
+];
+const REWARD_ICONS = [
+  "🎁", "🎮", "🍦", "🏞️", "📚", "⚽", "🎬", "🍕",
+  "🎨", "🧩", "🚲", "🏊", "🍿", "🎵", "🛝", "🧁",
+];
 
 const inputClass =
   "w-full rounded-2xl border-2 border-[color:var(--shell)] px-4 py-3 text-base font-bold text-foreground outline-none transition focus-visible:border-[color:var(--primary)]";
@@ -79,6 +100,149 @@ function AvatarPicker({
           <span aria-hidden="true">{option}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+// Choix de l'univers visuel, du héros et de la couleur du compagnon.
+// L'enfant peut aussi changer ces réglages depuis son écran : ici, le parent
+// prépare simplement un point de départ qui plaira à son enfant.
+function StyleHeroPicker({
+  theme,
+  character,
+  blobColor,
+  onTheme,
+  onCharacter,
+  onBlobColor,
+}: {
+  theme: ThemeId | null;
+  character: CharacterId | null;
+  blobColor: string | null;
+  onTheme: (theme: ThemeId | null) => void;
+  onCharacter: (character: CharacterId | null) => void;
+  onBlobColor: (color: string | null) => void;
+}) {
+  const effectiveTheme = theme ?? "jelly";
+  const base = THEMES[effectiveTheme];
+  const previewUi = resolveKidTheme(theme, character, blobColor);
+  const colorOptions: Array<{ key: string; color: string; value: string | null }> = [
+    { key: "default", color: base.scene.blob, value: null },
+    ...base.accents.map((accent) => ({ key: accent, color: accent, value: accent })),
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl bg-[color:var(--surface-soft)] p-4">
+      <div className="flex items-center gap-4">
+        <div className="shrink-0">
+          <BlobMascot ui={previewUi} size={72} wave={false} />
+        </div>
+        <p className="text-sm font-bold leading-6 text-[color:var(--ink-soft)]">
+          Choisis l&apos;univers et le héros qui feront briller les yeux de ton
+          enfant. Il pourra aussi les changer depuis son écran.
+        </p>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-[color:var(--ink-soft)]">
+          Univers
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {THEME_ORDER.map((id) => {
+            const entry = THEMES[id];
+            const active = effectiveTheme === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onTheme(id)}
+                aria-pressed={active}
+                className={`flex items-center gap-2 rounded-2xl border-2 px-3 py-2 text-left transition ${
+                  active
+                    ? "border-[color:var(--primary)] bg-[color:var(--shell)]"
+                    : "border-transparent bg-[color:var(--surface)]"
+                }`}
+              >
+                <span className="text-xl" aria-hidden="true">
+                  {entry.emoji}
+                </span>
+                <span>
+                  <span className="block text-sm font-black text-foreground">
+                    {entry.name}
+                  </span>
+                  <span className="block text-xs font-bold text-[color:var(--ink-soft)]">
+                    {entry.tagline}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-[color:var(--ink-soft)]">
+          Héros
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {CHARACTER_ORDER.map((id) => {
+            const entry = CHARACTERS[id];
+            const active = (character ?? "pirate") === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onCharacter(id)}
+                aria-pressed={active}
+                className={`flex items-center gap-2 rounded-2xl border-2 px-3 py-2 transition ${
+                  active
+                    ? "border-[color:var(--primary)] bg-[color:var(--shell)]"
+                    : "border-transparent bg-[color:var(--surface)]"
+                }`}
+              >
+                <span className="text-xl" aria-hidden="true">
+                  {entry.emoji}
+                </span>
+                <span className="text-sm font-black text-foreground">
+                  {entry.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-black uppercase tracking-[0.08em] text-[color:var(--ink-soft)]">
+          Couleur du compagnon
+        </p>
+        <div className="flex items-center gap-2">
+          {colorOptions.map((option) => {
+            const active = (blobColor ?? null) === option.value;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onBlobColor(option.value)}
+                aria-pressed={active}
+                aria-label={
+                  option.value === null
+                    ? "Couleur d'origine de l'univers"
+                    : `Couleur ${option.color}`
+                }
+                className={`rounded-full transition ${
+                  active ? "ring-2 ring-[color:var(--primary)] ring-offset-2" : ""
+                }`}
+                style={{
+                  width: 28,
+                  height: 28,
+                  background: option.color,
+                  border: "2px solid rgba(255,255,255,.8)",
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -172,7 +336,7 @@ function PresetSheet({
                   {item.icon}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-black text-foreground">
+                  <span className="block break-words text-base font-black leading-tight text-foreground">
                     {item.title}
                   </span>
                   <span className="block text-xs font-bold text-[color:var(--ink-soft)]">
@@ -223,6 +387,9 @@ function Header({
   name: string;
   onSignOut: () => void;
 }) {
+  // Prénom seul (ou partie avant @ pour un e-mail) : plus chaleureux.
+  const firstName = name.split("@")[0].split(" ")[0];
+  const initial = (firstName[0] ?? "P").toUpperCase();
   return (
     <header className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
@@ -233,9 +400,17 @@ function Header({
         >
           <PiArrowLeftBold aria-hidden="true" />
         </Link>
+        <span
+          aria-hidden="true"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--primary)] text-lg font-black text-white shadow-md"
+        >
+          {initial}
+        </span>
         <div>
           <p className="section-kicker">Espace parent</p>
-          <p className="text-base font-black text-foreground sm:text-lg">{name}</p>
+          <p className="text-base font-black text-foreground sm:text-lg">
+            Bonjour {firstName} 👋
+          </p>
         </div>
       </div>
       <button
@@ -250,7 +425,13 @@ function Header({
   );
 }
 
-function Onboarding({ parentId }: { parentId: string }) {
+function Onboarding({
+  parentId,
+  onCreated,
+}: {
+  parentId: string;
+  onCreated: (childId: string) => void;
+}) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(CHILD_AVATARS[0]);
   const [busy, setBusy] = useState(false);
@@ -264,6 +445,7 @@ function Onboarding({ parentId }: { parentId: string }) {
     try {
       const ref = await addChild(parentId, { name: trimmed, avatar });
       await seedStarterKit(parentId, ref.id);
+      onCreated(ref.id);
     } catch (error) {
       console.error("Création de l'enfant échouée", error);
     } finally {
@@ -316,6 +498,55 @@ function Onboarding({ parentId }: { parentId: string }) {
   );
 }
 
+function OnboardingSetup({
+  parentId,
+  child,
+  missions,
+  rewards,
+  onDone,
+}: {
+  parentId: string;
+  child: Child;
+  missions: Mission[];
+  rewards: Reward[];
+  onDone: () => void;
+}) {
+  return (
+    <section className="flex flex-col gap-5">
+      <div className="panel-card p-5 text-center sm:p-6">
+        <span className="text-5xl" aria-hidden="true">
+          {child.avatar}
+        </span>
+        <p className="section-kicker mt-4">Premier paramétrage</p>
+        <h1 className="mt-2 font-display text-4xl leading-none text-foreground sm:text-5xl">
+          Prépare les coffres de {child.name}
+        </h1>
+        <p className="mx-auto mt-3 max-w-xl text-base font-bold leading-7 text-[color:var(--ink-soft)]">
+          Ajuste les missions et glisse les récompenses dans les coffres avant
+          de lancer l&apos;aventure.
+        </p>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <MissionsCard
+          parentId={parentId}
+          childId={child.id}
+          missions={missions}
+        />
+        <RewardsCard parentId={parentId} childId={child.id} rewards={rewards} />
+      </div>
+
+      <button
+        type="button"
+        onClick={onDone}
+        className="task-button self-center bg-[color:var(--success)] px-8 text-white"
+      >
+        Terminer l&apos;onboarding
+      </button>
+    </section>
+  );
+}
+
 function ChildBar({
   parentId,
   kids,
@@ -338,7 +569,12 @@ function ChildBar({
   const [editPhoto, setEditPhoto] = useState<string | null>(null);
   const [editSoundId, setEditSoundId] = useState<string | null>(null);
   const [editCustomSound, setEditCustomSound] = useState<string | null>(null);
-  const [editBusy, setEditBusy] = useState(false);
+  const [editTheme, setEditTheme] = useState<ThemeId | null>(null);
+  const [editCharacter, setEditCharacter] = useState<CharacterId | null>(null);
+  const [editBlobColor, setEditBlobColor] = useState<string | null>(null);
+  // Compteur d'enregistrements : chaque sauvegarde réussie affiche le toast
+  // « Modification enregistrée » (auto-masqué par animation CSS).
+  const [savedTick, setSavedTick] = useState(0);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   function startEdit(child: Child) {
@@ -349,40 +585,71 @@ function ChildBar({
     setEditPhoto(child.photoURL);
     setEditSoundId(child.soundId);
     setEditCustomSound(child.customSound);
+    setEditTheme(child.theme);
+    setEditCharacter(child.character);
+    setEditBlobColor(child.blobColor);
   }
+
+  // Sauvegarde immédiate d'un champ (auto-save : pas de bouton Enregistrer).
+  async function persistEdit(
+    childId: string,
+    data: Partial<
+      Pick<
+        Child,
+        | "name"
+        | "avatar"
+        | "photoURL"
+        | "soundId"
+        | "customSound"
+        | "theme"
+        | "character"
+        | "blobColor"
+      >
+    >
+  ) {
+    try {
+      await updateChild(parentId, childId, data);
+      setSavedTick((tick) => tick + 1);
+    } catch (error) {
+      console.error("Sauvegarde échouée", error);
+    }
+  }
+
+  // Le prénom est sauvegardé avec un léger délai pour ne pas écrire
+  // à chaque frappe.
+  useEffect(() => {
+    if (!editingId) {
+      return;
+    }
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      return;
+    }
+    const current = kids.find((kid) => kid.id === editingId);
+    if (!current || current.name === trimmed) {
+      return;
+    }
+    const childId = editingId;
+    const timer = setTimeout(() => {
+      void updateChild(parentId, childId, { name: trimmed })
+        .then(() => setSavedTick((tick) => tick + 1))
+        .catch((error) => console.error("Sauvegarde du prénom échouée", error));
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [editName, editingId, kids, parentId]);
 
   async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) {
+    if (!file || !editingId) {
       return;
     }
     try {
-      setEditPhoto(await compressImage(file));
+      const photo = await compressImage(file);
+      setEditPhoto(photo);
+      void persistEdit(editingId, { photoURL: photo });
     } catch (error) {
       console.error("Photo illisible", error);
-    }
-  }
-
-  async function handleSaveEdit() {
-    const trimmed = editName.trim();
-    if (!editingId || !trimmed || editBusy) {
-      return;
-    }
-    setEditBusy(true);
-    try {
-      await updateChild(parentId, editingId, {
-        name: trimmed,
-        avatar: editAvatar,
-        photoURL: editPhoto,
-        soundId: editSoundId,
-        customSound: editCustomSound,
-      });
-      setEditingId(null);
-    } catch (error) {
-      console.error("Modification de l'enfant échouée", error);
-    } finally {
-      setEditBusy(false);
     }
   }
 
@@ -477,7 +744,12 @@ function ChildBar({
 
       {editingId ? (
         <div className="mt-4 flex flex-col gap-4 border-t border-[color:var(--shell)] pt-4">
-          <p className="section-kicker">Modifier l&apos;enfant</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="section-kicker">Modifier l&apos;enfant</p>
+            <p className="text-xs font-bold text-[color:var(--ink-soft)]">
+              Tout est enregistré automatiquement
+            </p>
+          </div>
 
           <div className="flex items-center gap-4">
             <ChildAvatar
@@ -505,7 +777,10 @@ function ChildBar({
               {editPhoto ? (
                 <button
                   type="button"
-                  onClick={() => setEditPhoto(null)}
+                  onClick={() => {
+                    setEditPhoto(null);
+                    void persistEdit(editingId, { photoURL: null });
+                  }}
                   className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--surface-soft)] px-3 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
                 >
                   <PiTrashBold aria-hidden="true" /> Retirer
@@ -517,7 +792,10 @@ function ChildBar({
           <AvatarPicker
             options={CHILD_AVATARS}
             value={editAvatar}
-            onChange={setEditAvatar}
+            onChange={(value) => {
+              setEditAvatar(value);
+              void persistEdit(editingId, { avatar: value });
+            }}
           />
 
           <input
@@ -534,26 +812,47 @@ function ChildBar({
             onChange={({ soundId, customSound }) => {
               setEditSoundId(soundId);
               setEditCustomSound(customSound);
+              void persistEdit(editingId, { soundId, customSound });
             }}
           />
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleSaveEdit}
-              disabled={!editName.trim() || editBusy}
-              className="task-button flex-1 bg-[color:var(--primary)] text-white disabled:opacity-60"
-            >
-              Enregistrer
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditingId(null)}
-              className="inline-flex items-center justify-center rounded-2xl bg-[color:var(--surface-soft)] px-4 py-2 text-sm font-extrabold text-[color:var(--ink-soft)]"
-            >
-              Annuler
-            </button>
+          <div>
+            <p className="section-kicker mb-3">Univers &amp; héros</p>
+            <StyleHeroPicker
+              theme={editTheme}
+              character={editCharacter}
+              blobColor={editBlobColor}
+              onTheme={(value) => {
+                setEditTheme(value);
+                // Nouvel univers = couleur de compagnon d'origine.
+                setEditBlobColor(null);
+                void persistEdit(editingId, { theme: value, blobColor: null });
+              }}
+              onCharacter={(value) => {
+                setEditCharacter(value);
+                void persistEdit(editingId, { character: value });
+              }}
+              onBlobColor={(value) => {
+                setEditBlobColor(value);
+                void persistEdit(editingId, { blobColor: value });
+              }}
+            />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setEditingId(null)}
+            className="task-button self-start bg-[color:var(--surface-soft)] px-6 text-[color:var(--ink-soft)]"
+          >
+            Fermer
+          </button>
+        </div>
+      ) : null}
+
+      {/* Toast auto-save : réapparaît à chaque sauvegarde, se masque en CSS. */}
+      {savedTick > 0 ? (
+        <div key={savedTick} className="save-toast" role="status">
+          ✓ Modification enregistrée
         </div>
       ) : null}
 
@@ -655,11 +954,19 @@ function MissionsCard({
   return (
     <section className="panel-card flex flex-col p-5 sm:p-6">
       <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="section-kicker">Routine du matin</p>
-          <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
-            Missions
-          </h2>
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--primary)]/15 text-2xl"
+          >
+            🎯
+          </span>
+          <div>
+            <p className="section-kicker">Routine du matin</p>
+            <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
+              Missions
+            </h2>
+          </div>
         </div>
         <div className="count-pill">
           {missions.length}/{MAX_MISSIONS}
@@ -979,11 +1286,19 @@ function RewardsCard({
   return (
     <section className="panel-card flex flex-col p-5 sm:p-6">
       <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="section-kicker">À débloquer</p>
-          <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
-            Récompenses
-          </h2>
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--tertiary)]/25 text-2xl"
+          >
+            🎁
+          </span>
+          <div>
+            <p className="section-kicker">À débloquer</p>
+            <h2 className="mt-2 font-display text-3xl leading-none text-foreground">
+              Récompenses
+            </h2>
+          </div>
         </div>
         <div className="count-pill">{rewards.length}</div>
       </div>
@@ -1009,15 +1324,27 @@ export function ParentDashboard() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [onboardingSetup, setOnboardingSetup] = useState<{
+    parentId: string;
+    childId: string;
+  } | null>(null);
 
   const parentId = user?.uid ?? null;
+  const onboardingChildId =
+    onboardingSetup?.parentId === parentId ? onboardingSetup.childId : null;
 
   const activeChildId = useMemo(() => {
+    if (
+      onboardingChildId &&
+      children.some((child) => child.id === onboardingChildId)
+    ) {
+      return onboardingChildId;
+    }
     if (selectedChildId && children.some((child) => child.id === selectedChildId)) {
       return selectedChildId;
     }
     return children[0]?.id ?? null;
-  }, [selectedChildId, children]);
+  }, [onboardingChildId, selectedChildId, children]);
 
   useEffect(() => {
     if (!parentId) {
@@ -1049,6 +1376,11 @@ export function ParentDashboard() {
     [children, activeChildId]
   );
 
+  const onboardingChild = useMemo(
+    () => children.find((child) => child.id === onboardingChildId) ?? null,
+    [children, onboardingChildId]
+  );
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1068,11 +1400,37 @@ export function ParentDashboard() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         <Header
           name={user.displayName ?? user.email ?? "Parent"}
-          onSignOut={() => void signOut()}
+          onSignOut={() => {
+            setOnboardingSetup(null);
+            setSelectedChildId(null);
+            void signOut();
+          }}
         />
 
-        {children.length === 0 ? (
-          <Onboarding parentId={parentId} />
+        {onboardingChildId ? (
+          onboardingChild ? (
+            <OnboardingSetup
+              parentId={parentId}
+              child={onboardingChild}
+              missions={missions}
+              rewards={rewards}
+              onDone={() => setOnboardingSetup(null)}
+            />
+          ) : (
+            <section className="panel-card mx-auto w-full max-w-lg p-6 text-center sm:p-8">
+              <p className="text-base font-black text-[color:var(--ink-soft)]">
+                Préparation du profil...
+              </p>
+            </section>
+          )
+        ) : children.length === 0 ? (
+          <Onboarding
+            parentId={parentId}
+            onCreated={(childId) => {
+              setSelectedChildId(childId);
+              setOnboardingSetup({ parentId, childId });
+            }}
+          />
         ) : (
           <>
             <ChildBar
