@@ -58,6 +58,7 @@ import {
   toggleSound,
 } from "@/lib/feedback";
 import {
+  BLOB_COLOR_PRESETS,
   CHARACTER_ORDER,
   CHARACTERS,
   CHEST_TIER_COLORS,
@@ -74,6 +75,11 @@ import {
 // Three.js n'est chargé que lorsque la vue enfant s'affiche.
 const ChestScene = nextDynamic(
   () => import("@/components/chest-scene").then((mod) => mod.ChestScene),
+  { ssr: false }
+);
+
+const BlobMascot3D = nextDynamic(
+  () => import("@/components/blob-mascot-3d").then((mod) => mod.BlobMascot3D),
   { ssr: false }
 );
 
@@ -448,10 +454,11 @@ function BlobColorPicker({
   onPick: (color: string | null) => void;
 }) {
   const base = THEMES[themeId];
-  // null = couleur d'origine du thème, puis les 4 accents du thème.
+  // null = couleur d'origine du thème, puis les accents du thème + presets.
   const options: Array<{ key: string; color: string; value: string | null }> = [
     { key: "default", color: base.scene.blob, value: null },
     ...base.accents.map((accent) => ({ key: accent, color: accent, value: accent })),
+    ...BLOB_COLOR_PRESETS.map((preset) => ({ key: preset, color: preset, value: preset })),
   ];
   const current = blobColor ?? null;
   return (
@@ -851,7 +858,11 @@ function Dashboard({
                 placeItems: "center",
               }}
             >
-              <BlobMascot ui={ui} size={150} waveKey={`${ui.character}-${ui.scene.blob}`} />
+              <BlobMascot3D
+                ui={ui}
+                size={150}
+                interactiveRotate
+              />
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
               <span style={{ fontSize: 22 }} aria-hidden="true">
@@ -2012,6 +2023,23 @@ export function KidQuest() {
           >
             Skadoush
           </h1>
+          <div
+            className="skad-landing-blob"
+            style={{
+              display: "grid",
+              width: "min(128px, 36vw)",
+              height: "min(128px, 36vw)",
+              margin: "clamp(14px,3vw,20px) auto 0",
+              placeItems: "center",
+            }}
+          >
+            <BlobMascot3D
+              ui={ui}
+              size={128}
+              character="dragon"
+              interactiveRotate
+            />
+          </div>
           <div
             className="skad-landing-copy"
             style={{

@@ -4,7 +4,7 @@
 // coucou à l'arrivée) + chapeau et accessoire du personnage choisi.
 // Porté depuis le prototype Claude Design.
 
-import { useId } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   mix,
   rgba,
@@ -43,6 +43,21 @@ function CharacterHat({ character, s }: { character: CharacterId; s: SceneTokens
         <path d="M28 34 Q28 12 60 12 Q92 12 92 34 Z" fill="#aeb6c4" />
         <path d="M28 34 Q28 12 60 12 Q92 12 92 34 Z" fill="none" stroke="#8b94a6" strokeWidth="2" />
         <rect x="34" y="29" width="52" height="6" rx="3" fill="#7c869a" />
+      </g>
+    );
+  }
+  if (character === "dragon") {
+    return (
+      <g>
+        <path d="M25 41 Q31 11 60 8 Q89 11 95 41 Q78 31 60 31 Q42 31 25 41 Z" fill="#3f7f42" />
+        <path d="M25 41 Q31 11 60 8 Q89 11 95 41" fill="none" stroke="#2f6232" strokeWidth="2" />
+        <path d="M31 38 Q17 39 10 55 Q27 52 37 41 Z" fill="#5fbf5b" stroke="#2f6232" strokeWidth="1.5" />
+        <path d="M89 38 Q103 39 110 55 Q93 52 83 41 Z" fill="#5fbf5b" stroke="#2f6232" strokeWidth="1.5" />
+        <path d="M45 12 L39 -3 L53 8 Z" fill="#fff2b6" stroke="#d69b00" strokeWidth="1.3" strokeLinejoin="round" />
+        <path d="M75 12 L81 -3 L67 8 Z" fill="#fff2b6" stroke="#d69b00" strokeWidth="1.3" strokeLinejoin="round" />
+        <path d="M48 12 L60 1 L72 12" fill="none" stroke="#8ddf78" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="43" cy="29" r="2.4" fill="#fff2b6" />
+        <circle cx="77" cy="29" r="2.4" fill="#fff2b6" />
       </g>
     );
   }
@@ -86,6 +101,20 @@ function HandProp({ character }: { character: CharacterId }) {
       </g>
     );
   }
+  if (character === "dragon") {
+    return (
+      <g transform="translate(0,-34)">
+        <path
+          d="M0 -48 C8 -40 12 -34 8 -27 C5 -22 -4 -21 -8 -27 C-12 -34 -8 -41 0 -48 Z"
+          fill="#ff8a3d"
+          stroke="#ffd27a"
+          strokeWidth="1.5"
+        />
+        <path d="M1 -40 C5 -35 6 -31 3 -28 C0 -30 -1 -34 1 -40 Z" fill="#fff2b6" />
+        <rect x="-2" y="-28" width="4" height="25" rx="2" fill="#5b4636" />
+      </g>
+    );
+  }
   // princesse : baguette magique
   return (
     <g transform="translate(0,-34)">
@@ -109,6 +138,7 @@ interface BlobMascotProps {
   mood?: "happy" | "oh";
   character?: CharacterId;
   wave?: boolean;
+  interactiveRotate?: boolean;
   // Change cette clé pour rejouer le coucou (ex : au changement de perso).
   waveKey?: string | number;
 }
@@ -119,14 +149,90 @@ export function BlobMascot({
   mood = "happy",
   character,
   wave = true,
+  interactiveRotate = false,
   waveKey = 0,
 }: BlobMascotProps) {
   const s = ui.scene;
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const hero = character ?? ui.character;
+  const [rotation, setRotation] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartXRef = useRef(0);
+  const dragStartRotationRef = useRef(0);
+  const hitboxOutset = interactiveRotate ? Math.max(22, Math.round(size * 0.22)) : 0;
+
+  function startRotate(event: PointerEvent<HTMLDivElement>) {
+    if (!interactiveRotate) return;
+    dragStartXRef.current = event.clientX;
+    dragStartRotationRef.current = rotation;
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function rotate(event: PointerEvent<HTMLDivElement>) {
+    if (!interactiveRotate || !dragging) return;
+    const delta = event.clientX - dragStartXRef.current;
+    setRotation(dragStartRotationRef.current + delta * 1.15);
+  }
+
+  function stopRotate(event: PointerEvent<HTMLDivElement>) {
+    if (!interactiveRotate) return;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function rotateWithKeyboard(event: KeyboardEvent<HTMLDivElement>) {
+    if (!interactiveRotate) return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      setRotation((current) => current + (event.key === "ArrowLeft" ? -18 : 18));
+    }
+  }
 
   return (
-    <div style={{ width: size, height: size, animation: "skadFloat 3s ease-in-out infinite" }}>
+    <div
+      style={{
+        width: size,
+        height: size,
+        position: "relative",
+        animation: "skadFloat 3s ease-in-out infinite",
+      }}
+    >
+      <div
+        role={interactiveRotate ? "img" : undefined}
+        aria-label={interactiveRotate ? "Mascotte blob interactive" : undefined}
+        tabIndex={interactiveRotate ? 0 : undefined}
+        onPointerDown={startRotate}
+        onPointerMove={rotate}
+        onPointerUp={stopRotate}
+        onPointerCancel={stopRotate}
+        onLostPointerCapture={() => setDragging(false)}
+        onKeyDown={rotateWithKeyboard}
+        style={{
+          position: interactiveRotate ? "absolute" : "relative",
+          inset: interactiveRotate ? -hitboxOutset : undefined,
+          display: "grid",
+          placeItems: "center",
+          cursor: interactiveRotate ? (dragging ? "grabbing" : "grab") : "default",
+          touchAction: interactiveRotate ? "none" : "auto",
+          userSelect: "none",
+          outline: "none",
+        }}
+      >
+      <div
+        style={{
+          width: size,
+          height: size,
+          pointerEvents: "none",
+          transform: interactiveRotate
+            ? `perspective(${size * 5}px) rotateY(${rotation}deg)`
+            : undefined,
+          transformStyle: "preserve-3d",
+          transition: dragging ? "none" : "transform 220ms cubic-bezier(.34,1.56,.64,1)",
+        }}
+      >
       <svg viewBox="0 0 120 120" width={size} height={size} style={{ overflow: "visible" }} aria-hidden="true">
         <defs>
           <radialGradient id={id} cx="38%" cy="32%" r="75%">
@@ -212,6 +318,8 @@ export function BlobMascot({
         {/* chapeau du personnage (au-dessus de tout) */}
         <CharacterHat character={hero} s={s} />
       </svg>
+      </div>
+      </div>
     </div>
   );
 }
@@ -258,6 +366,9 @@ export function ChestIcon({ ui, color, size = 30, character }: ChestIconProps) {
       ) : null}
       {hero === "princesse" ? (
         <path d="M9 16.4 a1.6 1.6 0 0 1 3 1 a1.6 1.6 0 0 1 3 -1 q0 2-3 3.4 q-3-1.4-3-3.4 Z" fill="#ff6ec7" />
+      ) : null}
+      {hero === "dragon" ? (
+        <path d="M21 15 l2 3 l3 -1.2 l-1.2 3.2 l2.5 2 h-4.1 l-2.2 2 l.4 -3.6 l-2.6 -2.4 l3.3 -.2 Z" fill="#5fbf5b" />
       ) : null}
     </svg>
   );

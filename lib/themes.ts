@@ -4,7 +4,7 @@
 // (valeurs conservées à l'identique).
 
 export type ThemeId = "jelly" | "arcade" | "cosmic";
-export type CharacterId = "pirate" | "chevalier" | "princesse";
+export type CharacterId = "pirate" | "chevalier" | "princesse" | "dragon";
 export type TextureId = "bubbles" | "grid" | "stars";
 
 export interface SceneTokens {
@@ -219,6 +219,13 @@ export const THEMES: Record<ThemeId, Theme> = {
 
 export const THEME_ORDER: readonly ThemeId[] = ["jelly", "arcade", "cosmic"];
 
+export const BLOB_COLOR_PRESETS: readonly string[] = [
+  "#8b5cf6",
+  "#ff8a3d",
+  "#ef4444",
+  "#84cc16",
+];
+
 // Personnages : changent le blob (chapeau + accessoire) ET la déco du coffre.
 export interface Character {
   id: CharacterId;
@@ -232,12 +239,14 @@ export const CHARACTERS: Record<CharacterId, Character> = {
   pirate: { id: "pirate", name: "Pirate", emoji: "🏴‍☠️", hatColor: "#272233", trim: "#ffd23d" },
   chevalier: { id: "chevalier", name: "Chevalier", emoji: "🛡️", hatColor: "#aeb6c4", trim: "#7c869a" },
   princesse: { id: "princesse", name: "Princesse", emoji: "👑", hatColor: "#ffd23d", trim: "#ff6ec7" },
+  dragon: { id: "dragon", name: "Dragon", emoji: "🐉", hatColor: "#3f7f42", trim: "#ff8a3d" },
 };
 
 export const CHARACTER_ORDER: readonly CharacterId[] = [
   "pirate",
   "chevalier",
   "princesse",
+  "dragon",
 ];
 
 // Couleurs du coffre 3D selon le palier choisi (bronze / argent / doré).
@@ -274,7 +283,7 @@ export function isThemeId(value: unknown): value is ThemeId {
 }
 
 export function isCharacterId(value: unknown): value is CharacterId {
-  return value === "pirate" || value === "chevalier" || value === "princesse";
+  return value === "pirate" || value === "chevalier" || value === "princesse" || value === "dragon";
 }
 
 /* ---------- utilitaires couleur ---------- */

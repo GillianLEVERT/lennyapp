@@ -288,6 +288,41 @@ export function ChestScene({
       hat.add(helm);
       hat.add(visor);
       hat.add(plume);
+    } else if (hero === "dragon") {
+      const hoodMat = new THREE.MeshStandardMaterial({ color: 0x3f7f42, roughness: 0.45 });
+      const wingMat = new THREE.MeshStandardMaterial({
+        color: 0x5fbf5b,
+        roughness: 0.5,
+        side: THREE.DoubleSide,
+      });
+      const hornMat = new THREE.MeshStandardMaterial({ color: 0xfff2b6, roughness: 0.35 });
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), hoodMat);
+      hood.position.y = -0.04;
+      hood.scale.z = 0.9;
+      hood.castShadow = true;
+      hat.add(hood);
+
+      [-0.24, 0.24].forEach((x) => {
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.28, 10), hornMat);
+        horn.position.set(x, 0.35, 0.04);
+        horn.rotation.z = x < 0 ? 0.45 : -0.45;
+        horn.castShadow = true;
+        hat.add(horn);
+      });
+      [-0.16, 0, 0.16].forEach((x, i) => {
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 8), wingMat);
+        spike.position.set(x, 0.38 + i * 0.02, -0.12);
+        spike.rotation.x = -0.3;
+        hat.add(spike);
+      });
+      [-1, 1].forEach((side) => {
+        const wing = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.42, 3), wingMat);
+        wing.position.set(side * 0.53, -0.07, 0.02);
+        wing.rotation.set(0.25, 0, side * 0.65);
+        wing.scale.set(0.9, 1.1, 0.45);
+        wing.castShadow = true;
+        hat.add(wing);
+      });
     } else {
       const band = new THREE.Mesh(
         new THREE.CylinderGeometry(0.42, 0.46, 0.22, 24, 1, true),
@@ -357,6 +392,32 @@ export function ChestScene({
       sword.add(guard);
       sword.add(grip);
       armR.add(sword);
+    } else if (hero === "dragon") {
+      const flame = new THREE.Group();
+      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.35, 8), woodGrip);
+      stick.position.y = -0.66;
+      const flameMat = new THREE.MeshStandardMaterial({
+        color: 0xff8a3d,
+        roughness: 0.25,
+        emissive: 0xff6b1a,
+        emissiveIntensity: 0.5,
+      });
+      const glowMat = new THREE.MeshStandardMaterial({
+        color: 0xfff2b6,
+        roughness: 0.2,
+        emissive: 0xffd27a,
+        emissiveIntensity: 0.7,
+      });
+      const outer = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.36, 16), flameMat);
+      outer.position.y = -0.96;
+      outer.rotation.x = Math.PI;
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 12), glowMat);
+      inner.position.y = -0.91;
+      inner.rotation.x = Math.PI;
+      flame.add(stick);
+      flame.add(outer);
+      flame.add(inner);
+      armR.add(flame);
     } else {
       const wand = new THREE.Group();
       const stick = new THREE.Mesh(
@@ -456,6 +517,25 @@ export function ChestScene({
       shield.position.set(0, 0.78, 0.62);
       shield.rotation.x = Math.PI / 2;
       chest.add(shield);
+    } else if (hero === "dragon") {
+      const scale = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.22, 3), embMat);
+      scale.position.set(0, 0.77, 0.62);
+      scale.rotation.set(Math.PI / 2, 0, Math.PI);
+      chest.add(scale);
+      [-0.12, 0.12].forEach((x) => {
+        const spark = new THREE.Mesh(
+          new THREE.ConeGeometry(0.05, 0.12, 8),
+          new THREE.MeshStandardMaterial({
+            color: 0xff8a3d,
+            roughness: 0.25,
+            emissive: 0xff6b1a,
+            emissiveIntensity: 0.45,
+          })
+        );
+        spark.position.set(x, 0.86, 0.64);
+        spark.rotation.x = Math.PI / 2;
+        chest.add(spark);
+      });
     } else {
       const heart = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), embMat);
       heart.position.set(-0.06, 0.8, 0.62);

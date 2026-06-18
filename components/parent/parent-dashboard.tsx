@@ -47,6 +47,7 @@ import {
 } from "@/lib/presets";
 import { BlobMascot } from "@/components/blob-mascot";
 import {
+  BLOB_COLOR_PRESETS,
   CHARACTER_ORDER,
   CHARACTERS,
   resolveKidTheme,
@@ -128,6 +129,7 @@ function StyleHeroPicker({
   const colorOptions: Array<{ key: string; color: string; value: string | null }> = [
     { key: "default", color: base.scene.blob, value: null },
     ...base.accents.map((accent) => ({ key: accent, color: accent, value: accent })),
+    ...BLOB_COLOR_PRESETS.map((preset) => ({ key: preset, color: preset, value: preset })),
   ];
 
   return (
